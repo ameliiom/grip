@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(all(not(debug_assertions), not(feature = "custom-protocol")))]
+compile_error!("Release builds must enable `custom-protocol` so frontend assets are embedded.");
+
 mod bus;
 
 use bus::{AppBus, BusCommand, CommandError, DeviceSnapshot};
@@ -76,4 +79,19 @@ fn main() {
                 }
             }
         });
+}
+
+#[cfg(test)]
+mod asset_tests {
+    #[test]
+    fn embedded_frontend_assets_are_bundled() {
+        assert!(!tauri::is_dev());
+        let ctx: tauri::Context<tauri::Wry> = tauri::generate_context!();
+        let index = ctx
+            .assets()
+            .get(&"index.html".into())
+            .expect("index.html must be embedded in binary");
+        let html = String::from_utf8_lossy(&index);
+        assert!(html.contains("<div id=\"root\">"));
+    }
 }

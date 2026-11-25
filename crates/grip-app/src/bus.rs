@@ -91,6 +91,7 @@ pub struct DeviceSnapshot {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum BusCommand {
+    #[serde(rename_all = "camelCase")]
     GetSnapshot {
         device_key: Option<String>,
     },
@@ -286,6 +287,7 @@ impl AppBus {
 }
 
 impl BusEngine {
+    #[cfg(test)]
     pub fn new_with_devices(devices: Vec<Device>, store_path: PathBuf, simulated: bool) -> Self {
         let store = Store::load(&store_path).unwrap_or_default();
         Self {

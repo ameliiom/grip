@@ -7,3 +7,6 @@ skills-lock.json
 
 # design tool working files (screenshots may show real serial numbers)
 .impeccable/
+
+ui/node_modules/
+ui/dist/

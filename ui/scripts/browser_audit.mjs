@@ -37,10 +37,21 @@ export default async function audit(b) {
       if (/[\\u0660-\\u0669]/.test(document.body.innerText || '')) {
         issues.push('arabic-indic-digits-rendered');
       }
+      const pageTxt = document.body.innerText || '';
+      const techLeaks = ['Rust', 'Tauri', '00B4', 'PM2337', 'CSAW+', 'tap:', 'turbo:', 'slot ', 'localhost', '.exe', 'محاكاة'];
+      for (const tok of techLeaks) {
+        if (pageTxt.includes(tok)) {
+          issues.push('technical-jargon-on-ui:' + tok);
+          break;
+        }
+      }
       const main = document.querySelector('main') || document.body;
       const mainRect = main.getBoundingClientRect();
-      if (${w} >= 768 && mainRect.width / docW < 0.85) {
-        issues.push('under-width:' + Math.round((mainRect.width / docW) * 100) + '%');
+      const aside = document.querySelector('aside');
+      const asideW = aside ? aside.getBoundingClientRect().width : 0;
+      const usedRatio = (mainRect.width + asideW) / docW;
+      if (${w} >= 768 && usedRatio < 0.85) {
+        issues.push('under-width:' + Math.round(usedRatio * 100) + '%');
       }
 
       const visibleControls = [];
@@ -102,7 +113,7 @@ export default async function audit(b) {
       }
 
       // Wrapped short pills/badges/buttons (e.g. 2-line status badge) via true Range line-box Y-spread
-      for (const el of document.querySelectorAll('[data-badge], .badge, .pill, [role="status"], button')) {
+      for (const el of document.querySelectorAll('[data-badge], .badge, .pill, [role="status"], button:not([data-multiline-tile])')) {
         const txt = (el.innerText || '').trim();
         if (!txt || txt.length > 22 || el.querySelector('br')) continue;
         const r = el.getBoundingClientRect();

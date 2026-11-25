@@ -75,31 +75,41 @@ export function SurfaceInset({
   children: ReactNode;
   className?: string;
 }) {
-  return (
-    <div className={`bg-[var(--surface-2)] rounded-[var(--radius-md)] p-3 ${className}`}>
-      {children}
-    </div>
-  );
+  return <div className={`bg-[var(--surface-2)] rounded-[var(--radius-md)] p-3 sm:p-4 ${className}`}>{children}</div>;
 }
 
 export function AppShell({
+  sidebar,
   header,
-  children,
+  mobileNav,
   footer,
+  children,
 }: {
+  sidebar: ReactNode;
   header: ReactNode;
+  mobileNav: ReactNode;
+  footer?: ReactNode;
   children: ReactNode;
-  footer: ReactNode;
 }) {
   return (
-    <div className="min-h-screen w-full bg-[var(--surface-0)] text-[var(--fg)] flex flex-col">
-      <header className="w-full border-b border-[var(--border)] bg-[var(--surface-1)] px-4 sm:px-6 py-3">
-        {header}
-      </header>
-      <main className="w-full flex-1 px-4 sm:px-6 py-4 sm:py-6">{children}</main>
-      <footer className="w-full border-t border-[var(--border)] bg-[var(--surface-1)] px-4 sm:px-6 py-3 text-xs text-[var(--fg-muted)]">
-        {footer}
-      </footer>
+    <div className="min-h-screen w-full bg-[var(--surface-0)] text-[var(--fg)] flex">
+      <aside className="hidden lg:flex lg:flex-col w-56 xl:w-60 shrink-0 border-e border-[var(--border)] bg-[var(--surface-1)] p-4">
+        {sidebar}
+      </aside>
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+        <header className="w-full min-h-[56px] border-b border-[var(--border)] bg-[var(--surface-1)] px-4 sm:px-6 py-2 flex items-center">
+          {header}
+        </header>
+        <div className="lg:hidden border-b border-[var(--border)] bg-[var(--surface-1)] px-2 sm:px-4 py-1.5">
+          {mobileNav}
+        </div>
+        <main className="w-full flex-1 min-w-0 px-4 sm:px-6 py-4 sm:py-5">{children}</main>
+        {footer ? (
+          <footer className="w-full border-t border-[var(--border)] bg-[var(--surface-0)] px-4 sm:px-6 py-2.5 text-xs text-[var(--fg-muted)]">
+            {footer}
+          </footer>
+        ) : null}
+      </div>
     </div>
   );
 }

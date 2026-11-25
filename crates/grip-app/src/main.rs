@@ -4,9 +4,12 @@
 compile_error!("Release builds must enable `custom-protocol` so frontend assets are embedded.");
 
 mod bus;
+mod settings;
+mod win_host;
 
-use bus::{AppBus, BusCommand, CommandError, DeviceSnapshot};
+use bus::{AppBus, BusCommand, BusResponse, CommandError};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, RunEvent, State, WebviewWindowBuilder};
@@ -14,7 +17,7 @@ use tauri::{AppHandle, Manager, RunEvent, State, WebviewWindowBuilder};
 struct QuitRequested(AtomicBool);
 
 #[tauri::command]
-fn execute_command(bus: State<'_, AppBus>, cmd: BusCommand) -> Result<DeviceSnapshot, CommandError> {
+fn execute_command(bus: State<'_, Arc<AppBus>>, cmd: BusCommand) -> Result<BusResponse, CommandError> {
     bus.execute(cmd)
 }
 
@@ -32,20 +35,35 @@ fn open_main_window(app: &AppHandle) {
 }
 
 fn main() {
+    let _instance = match win_host::acquire_single_instance() {
+        Some(guard) => guard,
+        None => return,
+    };
+
+    let bus = Arc::new(AppBus::new());
+    let fg_bus = bus.clone();
+    win_host::start_foreground_watcher(Arc::new(move |exe| {
+        fg_bus.handle_foreground_app(&exe);
+    }));
+
     tauri::Builder::default()
-        .manage(AppBus::new())
+        .manage(bus)
         .manage(QuitRequested(AtomicBool::new(false)))
         .invoke_handler(tauri::generate_handler![execute_command])
         .setup(|app| {
-            let open_item = MenuItem::with_id(app, "open", "Open Grip", true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open_item, &quit_item])?;
+            let open_item = MenuItem::with_id(app, "open", "فتح Grip", true, None::<&str>)?;
+            let reapply_item = MenuItem::with_id(app, "reapply", "إعادة تطبيق البروفايل", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "خروج", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open_item, &reapply_item, &quit_item])?;
 
             let mut tray = TrayIconBuilder::new()
                 .tooltip("Grip")
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => open_main_window(app),
+                    "reapply" => {
+                        app.state::<Arc<AppBus>>().reapply_active();
+                    }
                     "quit" => {
                         app.state::<QuitRequested>().0.store(true, Ordering::Relaxed);
                         app.exit(0);
@@ -72,7 +90,7 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error building Grip")
         .run(|app, event| {
-            // Keep the lightweight Rust tray running when the window closes and WebView2 is destroyed.
+            // Destroy WebView2 window on close while keeping the lightweight Rust tray active.
             if let RunEvent::ExitRequested { api, .. } = event {
                 if !app.state::<QuitRequested>().0.load(Ordering::Relaxed) {
                     api.prevent_exit();

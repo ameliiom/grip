@@ -1,12 +1,17 @@
 export type Locale = "ar" | "en";
 
+export function cleanDeviceDisplayName(name: string): string {
+  return name.replace(/\s*\((?:Receiver|Wireless|Wired|Dongle|Bluetooth)\)\s*$/i, "").trim() || name;
+}
+
 export type ParsedAction =
   | { kind: "disabled" }
   | { kind: "mouse"; value: string }
   | { kind: "dpi"; value: string }
   | { kind: "dpi-clutch"; dpi: number }
   | { kind: "hypershift" }
-  | { kind: "profile-cycle"; dir: "up" | "down" }
+  | { kind: "profile"; value: string }
+  | { kind: "scroll-mode"; value: string }
   | { kind: "media"; value: string }
   | { kind: "key"; combo: string }
   | { kind: "turbo"; target: string; rate: number }
@@ -17,8 +22,12 @@ export function parseAction(raw: string): ParsedAction {
   const s = (raw || "").trim();
   if (!s || s === "disabled") return { kind: "disabled" };
   if (s === "hypershift") return { kind: "hypershift" };
-  if (s === "profile-cycle-up") return { kind: "profile-cycle", dir: "up" };
-  if (s === "profile-cycle-down") return { kind: "profile-cycle", dir: "down" };
+  if (["profile-up", "profile-down", "profile-cycle-up", "profile-cycle-down"].includes(s) || s.startsWith("profile:")) {
+    return { kind: "profile", value: s };
+  }
+  if (s.startsWith("scroll-mode:")) {
+    return { kind: "scroll-mode", value: s.slice(12) };
+  }
   if (["dpi-up", "dpi-down", "dpi-cycle-up", "dpi-cycle-down"].includes(s)) {
     return { kind: "dpi", value: s };
   }
@@ -66,31 +75,68 @@ export function parseAction(raw: string): ParsedAction {
   return { kind: "unknown", raw: s };
 }
 
-function formatKeyCombo(combo: string, compact = false, locale: Locale = "ar"): string {
+function formatKeyCombo(combo: string, compact = false): string {
   const parts = combo.split("+").filter(Boolean);
   const nice = parts.map((p) => {
     const lower = p.toLowerCase();
     const map: Record<string, string> = {
       ctrl: "Ctrl",
+      rctrl: "R-Ctrl",
       shift: "Shift",
+      rshift: "R-Shift",
       alt: "Alt",
+      ralt: "R-Alt",
       win: "Win",
+      rwin: "R-Win",
       minus: "-",
       equal: "=",
+      lbracket: "[",
+      rbracket: "]",
+      backslash: "\\",
+      semicolon: ";",
+      quote: "'",
+      comma: ",",
+      period: ".",
+      slash: "/",
       space: "Space",
       esc: "Esc",
       enter: "Enter",
       tab: "Tab",
       backspace: "Backspace",
       delete: "Del",
+      insert: "Ins",
+      home: "Home",
+      end: "End",
+      pageup: "PgUp",
+      pagedown: "PgDn",
+      up: "↑",
+      down: "↓",
+      left: "←",
+      right: "→",
+      capslock: "CapsLock",
+      printscreen: "PrtSc",
+      scrolllock: "ScrLk",
+      pause: "Pause",
+      menu: "Menu",
       grave: "`",
+      "num-enter": "Num Enter",
+      "num-plus": "Num +",
+      "num-minus": "Num -",
+      "num-star": "Num *",
+      "num-slash": "Num /",
+      "num-period": "Num .",
+      numlock: "NumLock",
     };
     if (map[lower]) return map[lower];
+    if (/^num[0-9]$/.test(lower)) return `Num ${lower.slice(3)}`;
+    if (/^f([1-9]|1[0-9]|2[0-4])$/.test(lower)) return lower.toUpperCase();
     return lower.length === 1 ? lower.toUpperCase() : (lower[0] ?? "").toUpperCase() + lower.slice(1);
   });
   if (compact && nice.length >= 4) {
-    const last = nice[nice.length - 1] ?? "";
-    return locale === "ar" ? `اختصار ${last}` : `Combo ${last}`;
+    const shortMods = nice.slice(0, -1).map((m) =>
+      m === "Ctrl" ? "C" : m === "Shift" ? "S" : m === "Alt" ? "A" : m === "Win" ? "W" : m,
+    );
+    return [...shortMods, nice[nice.length - 1] ?? ""].join("+");
   }
   return nice.join(" + ");
 }
@@ -131,6 +177,7 @@ export function formatMediaAction(value: string, locale: Locale): string {
     "play-pause": "تشغيل / إيقاف",
     "next-track": "المقطع التالي",
     "previous-track": "المقطع السابق",
+    stop: "إيقاف الوسائط",
   };
   const en: Record<string, string> = {
     "volume-up": "Volume up",
@@ -139,6 +186,7 @@ export function formatMediaAction(value: string, locale: Locale): string {
     "play-pause": "Play / Pause",
     "next-track": "Next track",
     "previous-track": "Previous track",
+    stop: "Stop media",
   };
   return (locale === "ar" ? ar[value] : en[value]) ?? value;
 }
@@ -155,14 +203,39 @@ export function formatHumanAction(
       return locale === "ar" ? "معطّل" : "Disabled";
     case "hypershift":
       return locale === "ar" ? (compact ? "طبقة ثانية" : "مفتاح الطبقة الإضافية") : compact ? "2nd Layer" : "Secondary Layer";
-    case "profile-cycle":
+    case "profile": {
+      if (parsed.value.startsWith("profile:")) {
+        const slot = parsed.value.slice(8);
+        return locale === "ar"
+          ? compact
+            ? `ذاكرة ${slot}`
+            : `بروفايل الذاكرة ${slot}`
+          : compact
+            ? `Slot ${slot}`
+            : `Onboard profile ${slot}`;
+      }
+      const ar: Record<string, string> = {
+        "profile-up": "البروفايل التالي",
+        "profile-down": "البروفايل السابق",
+        "profile-cycle-up": "تدوير البروفايل للأعلى",
+        "profile-cycle-down": "تدوير البروفايل للأسفل",
+      };
+      const en: Record<string, string> = {
+        "profile-up": "Next profile",
+        "profile-down": "Previous profile",
+        "profile-cycle-up": "Cycle profile up",
+        "profile-cycle-down": "Cycle profile down",
+      };
+      return (locale === "ar" ? ar[parsed.value] : en[parsed.value]) ?? parsed.value;
+    }
+    case "scroll-mode":
       return locale === "ar"
-        ? parsed.dir === "up"
-          ? "البروفايل التالي"
-          : "البروفايل السابق"
-        : parsed.dir === "up"
-          ? "Next profile"
-          : "Previous profile";
+        ? compact
+          ? "وضع العجلة"
+          : "تبديل وضع العجلة"
+        : compact
+          ? "Wheel mode"
+          : "Toggle wheel mode";
     case "dpi": {
       const ar: Record<string, string> = {
         "dpi-up": "رفع السرعة",
@@ -191,7 +264,7 @@ export function formatHumanAction(
     case "media":
       return formatMediaAction(parsed.value, locale);
     case "key":
-      return formatKeyCombo(parsed.combo, compact, locale);
+      return formatKeyCombo(parsed.combo, compact);
     case "turbo": {
       const inner = formatHumanAction(parsed.target, locale, macros, true);
       return locale === "ar"
@@ -382,6 +455,7 @@ export interface Vocab {
   searchPlaceholder: string;
   categories: {
     keys: string;
+    windows: string;
     mouse: string;
     turbo: string;
     speed: string;
@@ -392,13 +466,19 @@ export interface Vocab {
   keyCaptureHint: string;
   pressAnyKey: string;
   recordingKey: string;
+  recordingCancelHint: string;
+  quickPresetsLabel: string;
+  modifiersLabel: string;
   cancel: string;
   turboTargetLabel: string;
+  turboCaptureKey: string;
   turboRateLabel: string;
   perSecond: string;
   applyTurbo: string;
   clutchLabel: string;
   applyClutch: string;
+  profileActionsLabel: string;
+  onboardSlotsLabel: string;
   speedStagesTitle: string;
   addStage: string;
   removeStage: string;
@@ -421,10 +501,16 @@ export interface Vocab {
   scrollPrecision: string;
   scrollAccelLabel: string;
   smartReelLabel: string;
+  smartReelLevelLabel: string;
+  scrollOffLabel: string;
+  scrollLowLabel: string;
+  scrollMediumLabel: string;
+  scrollHighLabel: string;
   profilesTitle: string;
   newProfile: string;
   profileNamePlaceholder: string;
   create: string;
+  duplicateProfile: string;
   renameProfile: string;
   deleteProfile: string;
   exportProfiles: string;
@@ -523,6 +609,7 @@ export const VOCAB: Record<Locale, Vocab> = {
     searchPlaceholder: "ابحث عن قسم، زر، مرحلة سرعة، أو بروفايل...",
     categories: {
       keys: "اختصار",
+      windows: "ويندوز",
       mouse: "الماوس",
       turbo: "نقر سريع",
       speed: "السرعة",
@@ -530,16 +617,22 @@ export const VOCAB: Record<Locale, Vocab> = {
       macros: "ماكرو",
       disabled: "تعطيل",
     },
-    keyCaptureHint: "اضغط مربع الالتقاط ثم اضغط أي مفتاح أو اختصار:",
+    keyCaptureHint: "اضغط المربع بالأسفل ثم اضغط أي مفتاح أو اختصار:",
     pressAnyKey: "اضغط لتسجيل مفتاح",
     recordingKey: "اضغط المفتاح الآن...",
+    recordingCancelHint: "اضغط أي مفتاح الآن — أو اضغط هنا للإلغاء",
+    quickPresetsLabel: "اختصارات سريعة",
+    modifiersLabel: "مفاتيح التعديل المفردة",
     cancel: "إلغاء",
-    turboTargetLabel: "الزر المتكرر",
+    turboTargetLabel: "الزر أو المفتاح المتكرر",
+    turboCaptureKey: "تسجيل أي مفتاح من اللوحة",
     turboRateLabel: "السرعة (ضغطة في الثانية)",
     perSecond: "/ث",
     applyTurbo: "تعيين التكرار السريع",
     clutchLabel: "تثبيت مؤقت للدقة عند الضغط",
     applyClutch: "تعيين سرعة القنص",
+    profileActionsLabel: "تبديل البروفايلات والذاكرة",
+    onboardSlotsLabel: "التبديل المباشر لذاكرة الماوس",
     speedStagesTitle: "مراحل السرعة",
     addStage: "إضافة مرحلة",
     removeStage: "حذف المرحلة",
@@ -560,12 +653,18 @@ export const VOCAB: Record<Locale, Vocab> = {
     scrollTactile: "درجات ملموسة",
     scrollFreeSpin: "حركة حرة",
     scrollPrecision: "تدرّج دقيق",
-    scrollAccelLabel: "تسريع التمرير",
+    scrollAccelLabel: "تسريع التمرير الحر",
     smartReelLabel: "تحويل تلقائي للحر عند الدفع السريع",
+    smartReelLevelLabel: "حساسية التحويل التلقائي للحر",
+    scrollOffLabel: "إيقاف",
+    scrollLowLabel: "خفيف",
+    scrollMediumLabel: "متوسط",
+    scrollHighLabel: "عالي",
     profilesTitle: "البروفايلات",
     newProfile: "بروفايل جديد",
     profileNamePlaceholder: "اسم البروفايل (مثلاً: ألعاب)",
     create: "إنشاء",
+    duplicateProfile: "نسخ",
     renameProfile: "تغيير الاسم",
     deleteProfile: "حذف",
     exportProfiles: "تصدير نسخة احتياطية",
@@ -662,6 +761,7 @@ export const VOCAB: Record<Locale, Vocab> = {
     searchPlaceholder: "Search views, buttons, speed stages, or profiles...",
     categories: {
       keys: "Shortcut",
+      windows: "Windows",
       mouse: "Mouse",
       turbo: "Rapid fire",
       speed: "Speed",
@@ -669,16 +769,22 @@ export const VOCAB: Record<Locale, Vocab> = {
       macros: "Macros",
       disabled: "Disable",
     },
-    keyCaptureHint: "Click the capture box and press any key or shortcut:",
+    keyCaptureHint: "Click below and press any key, Numpad key, or combo:",
     pressAnyKey: "Click to record key",
     recordingKey: "Press any key now...",
+    recordingCancelHint: "Press any key now — or click here to cancel",
+    quickPresetsLabel: "Quick presets",
+    modifiersLabel: "Standalone modifiers",
     cancel: "Cancel",
     turboTargetLabel: "Repeated action",
+    turboCaptureKey: "Record any keyboard key",
     turboRateLabel: "Repeat speed (presses per second)",
     perSecond: "/s",
     applyTurbo: "Apply rapid repeat",
     clutchLabel: "Hold-to-aim precision speed",
     applyClutch: "Apply precision speed",
+    profileActionsLabel: "Profiles & memory slots",
+    onboardSlotsLabel: "Onboard memory slots",
     speedStagesTitle: "Speed stages",
     addStage: "Add stage",
     removeStage: "Remove stage",
@@ -699,12 +805,18 @@ export const VOCAB: Record<Locale, Vocab> = {
     scrollTactile: "Tactile",
     scrollFreeSpin: "Free spin",
     scrollPrecision: "Precision",
-    scrollAccelLabel: "Scroll acceleration",
+    scrollAccelLabel: "Free-spin acceleration",
     smartReelLabel: "Auto switch to free spin on fast flick",
+    smartReelLevelLabel: "Auto-switch flick sensitivity",
+    scrollOffLabel: "Off",
+    scrollLowLabel: "Low",
+    scrollMediumLabel: "Medium",
+    scrollHighLabel: "High",
     profilesTitle: "Profiles",
     newProfile: "New profile",
     profileNamePlaceholder: "Profile name (e.g. Gaming)",
     create: "Create",
+    duplicateProfile: "Duplicate",
     renameProfile: "Rename",
     deleteProfile: "Delete",
     exportProfiles: "Export backup",

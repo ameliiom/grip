@@ -52,11 +52,11 @@ export function ButtonsView({
   const activatorLabel = hyperActivator ? (BUTTON_LABELS[locale][hyperActivator.id] ?? hyperActivator.id) : null;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 items-stretch">
       {/* Model-accurate Visual Hardware Blueprint + Sticky On-Board Bar */}
-      <SurfaceCard primaryContent={true} className="xl:col-span-8 min-w-0 flex flex-col justify-between">
-        <Stack gap="4">
-          <Inline gap="2" justify="between" wrap={true}>
+      <SurfaceCard primaryContent={true} stableFrame={true} className="lg:col-span-8 min-w-0 h-full flex flex-col justify-between">
+        <Stack gap="4" className="flex-1 min-h-0 justify-between">
+          <div className="min-h-[40px] flex flex-wrap items-center justify-between gap-2">
             <SegmentedControl
               ariaLabel={vocab.layerPrimary}
               size="sm"
@@ -68,11 +68,18 @@ export function ButtonsView({
               ]}
             />
 
-            <Inline gap="2" wrap={true}>
-              {layer === "hypershift" && activatorLabel ? (
-                <Badge tone="active">
-                  {vocab.layerSecondaryHeldBy}: {activatorLabel}
-                </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              {activatorLabel ? (
+                <div
+                  className={`hidden sm:inline-flex ${
+                    layer === "hypershift" ? "" : "invisible pointer-events-none select-none"
+                  }`}
+                  aria-hidden={layer !== "hypershift" || undefined}
+                >
+                  <Badge tone="active">
+                    {vocab.layerSecondaryHeldBy}: {activatorLabel}
+                  </Badge>
+                </div>
               ) : null}
 
               <SegmentedControl
@@ -85,8 +92,8 @@ export function ButtonsView({
                   { value: "top", label: vocab.viewTop },
                 ]}
               />
-            </Inline>
-          </Inline>
+            </div>
+          </div>
 
           <HardwareBlueprint
             selectedButton={effectiveSelected}
@@ -129,13 +136,14 @@ export function ButtonsView({
       </SurfaceCard>
 
       {/* Single Contextual Action Inspector */}
-      <SurfaceCard className="xl:col-span-4 min-w-0">
+      <SurfaceCard stableFrame={true} className="lg:col-span-4 min-w-0 h-full">
         {activeEntry ? (
           <ActionInspector
             entry={activeEntry}
             layer={layer}
             macros={device.macros}
             hasMacros={device.capabilities.hasMacros}
+            hasScroll={device.capabilities.hasScroll}
             dpiMin={device.capabilities.dpiMin}
             dpiMax={device.capabilities.dpiMax}
             dpiStep={device.capabilities.dpiStep}

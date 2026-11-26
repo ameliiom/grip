@@ -89,12 +89,19 @@ export function PerformanceView({
     return Math.max(20, Math.min(100, Math.round(20 + ratio * 80)));
   };
 
+  const assistChoices = [
+    { value: "off", label: vocab.scrollOffLabel },
+    { value: "low", label: vocab.scrollLowLabel },
+    { value: "medium", label: vocab.scrollMediumLabel },
+    { value: "high", label: vocab.scrollHighLabel },
+  ] as const;
+
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 items-stretch">
       {/* Interactive 5-Stage Speed Curve + Single Compound Stage Tuner */}
       {capabilities.hasDpi ? (
-        <SurfaceCard primaryContent={true} className="xl:col-span-7 min-w-0">
-          <Stack gap="4">
+        <SurfaceCard primaryContent={true} stableFrame={true} className="lg:col-span-7 min-w-0 h-full flex flex-col justify-between">
+          <Stack gap="4" className="flex-1 justify-between">
             <Inline gap="2" justify="between" wrap={true}>
               <Inline gap="2" wrap={false}>
                 <Sliders size={18} strokeWidth={2} />
@@ -102,53 +109,57 @@ export function PerformanceView({
               </Inline>
 
               <Inline gap="1" wrap={false}>
-                {dpi.stages.length < dpi.maxStages ? (
-                  <Button variant="secondary" size="sm" onClick={addStage}>
-                    <Plus size={15} strokeWidth={2} />
-                    <span>{vocab.addStage}</span>
-                  </Button>
-                ) : null}
-                {dpi.stages.length > 1 ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    iconOnly={true}
-                    onClick={removeActiveStage}
-                    aria-label={vocab.removeStage}
-                    title={vocab.removeStage}
-                  >
-                    <Trash2 size={15} strokeWidth={2} />
-                  </Button>
-                ) : null}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={dpi.stages.length >= dpi.maxStages}
+                  onClick={addStage}
+                >
+                  <Plus size={15} strokeWidth={2} />
+                  <span>{vocab.addStage}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  iconOnly={true}
+                  disabled={dpi.stages.length <= 1}
+                  onClick={removeActiveStage}
+                  aria-label={vocab.removeStage}
+                  title={vocab.removeStage}
+                >
+                  <Trash2 size={15} strokeWidth={2} />
+                </Button>
               </Inline>
             </Inline>
 
-            {/* Visual Stage Curve Bars — each stage scaled dynamically across sensor range */}
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 w-full" dir="ltr">
-              {dpi.stages.map(([x, y], idx) => {
-                const isActive = idx + 1 === dpi.activeStage;
-                const barPct = stageBarPercent(x);
-                const label = x === y ? `${x}` : `${x}×${y}`;
-                return (
-                  <TileButton
-                    key={`stage-${idx + 1}`}
-                    active={isActive}
-                    align="center"
-                    onClick={() => onSelectDpiStage(idx + 1)}
-                    ariaLabel={`${vocab.speedStagesTitle} ${idx + 1}: ${label} ${vocab.speedUnit}`}
-                  >
-                    <span className="w-full h-14 rounded-[var(--radius-sm)] bg-[var(--surface-2)] flex items-end p-1 overflow-hidden">
-                      <span
-                        className={`w-full rounded-[4px] grip-transition ${
-                          isActive ? "bg-[var(--brand)]" : "bg-[var(--fg-muted)] opacity-55"
-                        }`}
-                        style={{ height: `${barPct}%` }}
-                      />
-                    </span>
-                    <span className="text-xs font-bold tabular-nums whitespace-nowrap">{label}</span>
-                  </TileButton>
-                );
-              })}
+            {/* Visual Stage Curve Bars — fills middle canvas proportionally without floating air under title */}
+            <div className="flex-1 flex items-center w-full" dir="ltr">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 w-full">
+                {dpi.stages.map(([x, y], idx) => {
+                  const isActive = idx + 1 === dpi.activeStage;
+                  const barPct = stageBarPercent(x);
+                  const label = x === y ? `${x}` : `${x}×${y}`;
+                  return (
+                    <TileButton
+                      key={`stage-${idx + 1}`}
+                      active={isActive}
+                      align="center"
+                      onClick={() => onSelectDpiStage(idx + 1)}
+                      ariaLabel={`${vocab.speedStagesTitle} ${idx + 1}: ${label} ${vocab.speedUnit}`}
+                    >
+                      <span className="w-full h-24 sm:h-40 rounded-[var(--radius-sm)] bg-[var(--surface-2)] flex items-end p-1.5 overflow-hidden">
+                        <span
+                          className={`w-full rounded-[4px] grip-transition ${
+                            isActive ? "bg-[var(--brand)]" : "bg-[var(--fg-muted)] opacity-55"
+                          }`}
+                          style={{ height: `${barPct}%` }}
+                        />
+                      </span>
+                      <span className="text-xs font-medium tabular-nums whitespace-nowrap">{label}</span>
+                    </TileButton>
+                  );
+                })}
+              </div>
             </div>
 
             <SurfaceInset>
@@ -229,9 +240,9 @@ export function PerformanceView({
       ) : null}
 
       {/* Polling Latency Selector, Visual Power Meter & Conditional Scroll Wheel */}
-      <Stack gap="4" className="xl:col-span-5 min-w-0">
+      <Stack gap="4" className="lg:col-span-5 min-w-0 h-full justify-between">
         {capabilities.pollingOptions.length > 0 && device.pollingHz !== null ? (
-          <SurfaceCard>
+          <SurfaceCard stableFrame={true}>
             <Stack gap="4">
               <Inline gap="2" wrap={false}>
                 <Zap size={17} strokeWidth={2} />
@@ -255,7 +266,7 @@ export function PerformanceView({
         ) : null}
 
         {device.batteryPercent !== null || sleepChoices.length > 0 ? (
-          <SurfaceCard>
+          <SurfaceCard stableFrame={true} className="flex-1 flex flex-col justify-between">
             <Stack gap="4">
               <Inline gap="2" wrap={false}>
                 <Moon size={17} strokeWidth={2} />
@@ -311,7 +322,7 @@ export function PerformanceView({
         ) : null}
 
         {capabilities.hasScroll && device.scroll ? (
-          <SurfaceCard>
+          <SurfaceCard stableFrame={true}>
             <Stack gap="4">
               <h2 className="text-base font-bold">{vocab.scrollWheelTitle}</h2>
               <Stack gap="2">
@@ -328,14 +339,28 @@ export function PerformanceView({
                   ]}
                 />
               </Stack>
-              <Inline gap="2" justify="between" wrap={false}>
-                <span className="text-sm">{vocab.smartReelLabel}</span>
-                <Switch
-                  ariaLabel={vocab.smartReelLabel}
-                  checked={device.scroll.smartReel !== "off"}
-                  onCheckedChange={(on) => onSetScroll({ smartReel: on ? "medium" : "off" })}
+              <Stack gap="2">
+                <span className="text-xs text-[var(--fg-muted)]">{vocab.scrollAccelLabel}</span>
+                <ChoiceChips
+                  ariaLabel={vocab.scrollAccelLabel}
+                  size="sm"
+                  columns={4}
+                  value={device.scroll.acceleration}
+                  onChange={(acceleration) => onSetScroll({ acceleration })}
+                  options={[...assistChoices]}
                 />
-              </Inline>
+              </Stack>
+              <Stack gap="2">
+                <span className="text-xs text-[var(--fg-muted)]">{vocab.smartReelLevelLabel}</span>
+                <ChoiceChips
+                  ariaLabel={vocab.smartReelLevelLabel}
+                  size="sm"
+                  columns={4}
+                  value={device.scroll.smartReel}
+                  onChange={(smartReel) => onSetScroll({ smartReel })}
+                  options={[...assistChoices]}
+                />
+              </Stack>
             </Stack>
           </SurfaceCard>
         ) : null}

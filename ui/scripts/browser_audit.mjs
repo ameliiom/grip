@@ -56,6 +56,21 @@ export default async function audit(b) {
       if (${w} >= 768 && usedRatio < 0.85) {
         issues.push('under-width:' + Math.round(usedRatio * 100) + '%');
       }
+      if (${w} >= 1024 && !main.querySelector('[data-compact-page="true"]')) {
+        const flowKids = [...main.children].filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && getComputedStyle(el).position !== 'fixed';
+        });
+        if (flowKids.length > 0) {
+          const minTop = Math.min(...flowKids.map((el) => el.getBoundingClientRect().top));
+          const maxBot = Math.max(...flowKids.map((el) => el.getBoundingClientRect().bottom));
+          const contentH = maxBot - minTop;
+          const availH = Math.max(1, mainRect.height - 32);
+          if (contentH / availH < 0.62) {
+            issues.push('under-height-dead-void:' + Math.round((contentH / availH) * 100) + '%');
+          }
+        }
+      }
 
       const visibleControls = [];
       for (const el of document.querySelectorAll('button, a[href], input, select, [role="button"], [role="switch"]')) {
@@ -160,6 +175,38 @@ export default async function audit(b) {
       });
       if (primaryCtas.length > 1) {
         issues.push('multiple-primary-ctas:' + primaryCtas.length);
+      }
+
+      // Visual Role Differentiation: distinct adjacent [data-control-tier] groups cannot share identical surface + border styling
+      for (const container of document.querySelectorAll('[data-card], [data-inspector], [role="dialog"]')) {
+        const tiers = [...container.querySelectorAll('[data-control-tier]')].filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        });
+        if (tiers.length < 2) continue;
+        const sigs = new Map();
+        for (const tEl of tiers) {
+          const role = tEl.getAttribute('data-control-tier') || '';
+          const wcs = getComputedStyle(tEl);
+          const inactBtn = [...tEl.querySelectorAll('button, [role="button"]')].find(
+            (b) => b.getAttribute('data-active') !== 'true' && b.getAttribute('aria-pressed') !== 'true' && b.getBoundingClientRect().width > 0,
+          );
+          const bcs = inactBtn ? getComputedStyle(inactBtn) : null;
+          const sig = [
+            wcs.backgroundColor,
+            wcs.borderTopColor,
+            wcs.borderTopStyle,
+            bcs ? bcs.backgroundColor : '',
+            bcs ? bcs.borderTopColor : '',
+            bcs ? bcs.borderTopStyle : '',
+          ].join('|');
+          for (const [prevRole, prevSig] of sigs.entries()) {
+            if (prevRole !== role && prevSig === sig) {
+              issues.push('lookalike-control-tiers:' + prevRole + '=' + role);
+            }
+          }
+          sigs.set(role, sig);
+        }
       }
 
       // Stacked row actions inside table/grid/list cells (HTML tables AND virtualized ARIA grids)
@@ -389,6 +436,82 @@ export default async function audit(b) {
         failures.push({ theme, width: w, issues: report });
       }
     }
+  }
+
+  // Interactive Layout Shift probe (top-bar nav lock across views + card stability across intra-view toggles)
+  await b.colorScheme(THEMES[THEMES.length - 1] || "dark");
+  await b.viewport(1366, 900, false);
+  await b.eval("window.scrollTo(0, 0); new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+  const shiftIssues = await b.eval(`(async () => {
+    const out = [];
+    const waitRaf = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const snapNav = () => {
+      const el = document.querySelector('[data-shift-probe="nav"]') || document.querySelector('header nav');
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2 } : null;
+    };
+    const snapFrames = () => [...document.querySelectorAll('[data-stable-frame="true"]')]
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.left, y: r.top, w: r.width, h: r.height };
+      })
+      .filter((f) => f.w > 0 && f.h > 0);
+
+    const baseNav = snapNav();
+    const navButtons = [...document.querySelectorAll('[data-shift-probe="nav"] button, header nav button')].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && !el.disabled;
+    });
+    const firstNav = navButtons.find((el) => el.getAttribute('data-active') === 'true' || el.getAttribute('aria-pressed') === 'true') || navButtons[0];
+    for (const btn of navButtons) {
+      if (btn === firstNav) continue;
+      btn.click();
+      await waitRaf();
+      const curNav = snapNav();
+      if (baseNav && curNav) {
+        const dx = Math.abs(curNav.cx - baseNav.cx);
+        const dy = Math.abs(curNav.cy - baseNav.cy);
+        if (dx > 2 || dy > 2) {
+          out.push('nav-shift-on-view:' + (btn.innerText || '').trim() + ':' + Math.round(dx) + 'x' + Math.round(dy));
+        }
+      }
+    }
+    if (firstNav) {
+      firstNav.click();
+      await waitRaf();
+    }
+
+    const baseFrames = snapFrames();
+    const intraButtons = [...document.querySelectorAll('main [role="group"]:not([data-control-tier="presets"]) button')]
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && !el.disabled && el.getAttribute('data-active') !== 'true' && el.getAttribute('aria-pressed') !== 'true';
+      })
+      .slice(0, 8);
+    for (const btn of intraButtons) {
+      const label = (btn.innerText || btn.getAttribute('aria-label') || '').trim().slice(0, 20);
+      btn.click();
+      await waitRaf();
+      const curNav = snapNav();
+      if (baseNav && curNav && (Math.abs(curNav.cx - baseNav.cx) > 2 || Math.abs(curNav.cy - baseNav.cy) > 2)) {
+        out.push('nav-shift-on-click:' + label);
+      }
+      const curFrames = snapFrames();
+      if (baseFrames.length > 0 && curFrames.length === baseFrames.length) {
+        for (let i = 0; i < curFrames.length; i++) {
+          const a = baseFrames[i], c = curFrames[i];
+          if (Math.abs(c.x - a.x) > 4 || Math.abs(c.y - a.y) > 4 || Math.abs(c.w - a.w) > 4 || Math.abs(c.h - a.h) > 4) {
+            out.push('interactive-layout-shift:' + label + ':' + Math.round(Math.abs(c.h - a.h)) + 'px');
+            break;
+          }
+        }
+      }
+    }
+    return out;
+  })()`);
+  if (Array.isArray(shiftIssues) && shiftIssues.length) {
+    failures.push({ interactiveShift: shiftIssues });
   }
 
   // Real mouse-wheel scroll test at desktop width (reuses loaded page at scrollY=0, zero redundant goto)

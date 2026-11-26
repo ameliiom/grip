@@ -1,5 +1,5 @@
 import type { ButtonEntry, DeviceCapabilities, LayerName, MacroSummary } from "../../acl/transport";
-import { Stack, TileButton } from "../../design-system/primitives";
+import { TileButton } from "../../design-system/primitives";
 import { BUTTON_LABELS, formatHumanAction, type Locale, type Vocab } from "../../i18n/vocab";
 import { resolveBlueprint, type TopAnchorSpec } from "./blueprints";
 
@@ -207,20 +207,16 @@ export function HardwareBlueprint({
   const sg = side.sideGrid;
 
   const sideCalloutText = (id: string) =>
-    resolveDisplayAction(
-      BUTTON_LABELS[locale][id] ?? id,
-      BUTTON_LABELS[locale][id] ?? id,
-      formatHumanAction(actionFor(byId.get(id), layer), locale, macros, true),
-      isModified(byId.get(id), layer),
-      vocab.defaultActionLabel,
-    );
+    isModified(byId.get(id), layer)
+      ? formatHumanAction(actionFor(byId.get(id), layer), locale, macros, true)
+      : (BUTTON_LABELS[locale][id] ?? id);
 
   return (
-    <div className="rounded-[var(--radius-md)] bg-[var(--hw-canvas)] p-4 sm:p-5">
+    <div className="rounded-[var(--radius-md)] bg-[var(--hw-canvas)] p-4 sm:p-5 flex-1 min-h-[320px] sm:min-h-[clamp(440px,calc(100vh-250px),680px)] flex flex-col justify-between">
       {view === "side" ? (
-        <Stack gap="4">
-          {/* Orthographic Left Side Locator SVG (quiet hardware anatomy; only selected key glows softly) */}
-          <div className="w-full max-w-[620px] mx-auto" dir="ltr">
+        <div className="flex-1 flex flex-col justify-between gap-4 min-h-0">
+          {/* Orthographic Left Side Locator SVG (fluidly fills available canvas height) */}
+          <div className="w-full max-w-[clamp(520px,54vw,760px)] self-center flex-1 flex items-center justify-center" dir="ltr">
             <svg viewBox={side.viewBox} className="w-full h-auto select-none block">
               {side.skates.map(([x1, y1, x2, y2], idx) => (
                 <line
@@ -450,11 +446,14 @@ export function HardwareBlueprint({
               />
             ))}
           </div>
-        </Stack>
+        </div>
       ) : (
-        <Stack gap="4">
+        <div className="flex-1 flex flex-col justify-center min-h-0">
           {/* Desktop Orthographic Top Schematic With Pixel-Exact Vector Pointer Leader Lines */}
-          <div className="hidden sm:grid sm:grid-cols-[minmax(0,1fr)_320px_minmax(0,1fr)] items-stretch gap-0 w-full" dir="ltr">
+          <div
+            className="hidden sm:grid sm:grid-cols-[minmax(0,1fr)_320px_minmax(0,1fr)] items-stretch gap-0 w-full max-w-[760px] self-center"
+            dir="ltr"
+          >
             <div className="flex flex-col justify-between h-[360px] pt-1 pb-3 min-w-0">
               {topLeftIds.map((id) => (
                 <CalloutTile
@@ -780,7 +779,7 @@ export function HardwareBlueprint({
               ))}
             </div>
           </div>
-        </Stack>
+        </div>
       )}
     </div>
   );

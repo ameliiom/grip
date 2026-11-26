@@ -2,7 +2,7 @@ import { Battery, BatteryCharging, ChevronDown, Mouse } from "lucide-react";
 import { useState } from "react";
 import type { DeviceSnapshot, DeviceSummary } from "../../acl/transport";
 import { Button, ChoiceChips, Popover, Stack } from "../../design-system/primitives";
-import type { Vocab } from "../../i18n/vocab";
+import { cleanDeviceDisplayName, type Vocab } from "../../i18n/vocab";
 
 export function DeviceIdentityBar({
   appName,
@@ -45,8 +45,8 @@ export function DeviceIdentityBar({
             title={vocab.connected}
             aria-label={vocab.connected}
           />
-          <span className="hidden lg:inline text-sm font-medium text-[var(--fg)] truncate max-w-[200px]">
-            {device.name}
+          <span className="hidden lg:inline text-sm font-medium text-[var(--fg)] whitespace-nowrap truncate max-w-[280px] xl:max-w-none">
+            {cleanDeviceDisplayName(device.name)}
           </span>
           {batteryNode}
         </span>
@@ -84,7 +84,7 @@ export function DeviceIdentityBar({
             onSelectDevice(k);
             setPickerOpen(false);
           }}
-          options={devices.map((d) => ({ value: d.deviceKey, label: d.name }))}
+          options={devices.map((d) => ({ value: d.deviceKey, label: cleanDeviceDisplayName(d.name) }))}
         />
       </Stack>
     </Popover>

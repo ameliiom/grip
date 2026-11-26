@@ -48,7 +48,7 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(opt.value)}
             className={`${fullWidth ? "flex-1 min-w-0" : ""} inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-sm)] px-3 text-xs font-medium grip-transition grip-focus cursor-pointer ${BTN_SIZE_CLS[size]} ${
               isActive
-                ? "bg-[var(--surface-0)] text-[var(--fg)] font-semibold border border-[var(--border)]"
+                ? "bg-[var(--surface-0)] text-[var(--fg)] border border-[var(--border-strong)]"
                 : "border border-transparent text-[var(--fg-muted)] hover:text-[var(--fg)]"
             }`}
           >

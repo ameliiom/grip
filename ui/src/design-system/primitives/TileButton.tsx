@@ -37,11 +37,11 @@ export function TileButton({
   const stateCls =
     tone === "hardware"
       ? active
-        ? "bg-[var(--brand)] text-[var(--brand-fg)] border border-[var(--brand)] font-semibold"
-        : "bg-[var(--hw-shell)] hover:border-[var(--fg)] text-[var(--fg)] border border-[var(--hw-stroke)]"
+        ? "bg-[var(--brand)] text-[var(--brand-fg)] border border-[var(--brand)] font-medium"
+        : "bg-[var(--hw-shell)] hover:border-[var(--fg)] text-[var(--fg)] border border-[var(--hw-stroke)] font-medium"
       : active
-        ? "bg-[var(--surface-2)] border border-[var(--fg)] text-[var(--fg)] font-semibold"
-        : "bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-[var(--fg)] border border-[var(--border)]";
+        ? "bg-[var(--surface-3)] border border-[var(--fg)] text-[var(--fg)] font-medium"
+        : "bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-[var(--fg)] border border-[var(--border)] font-medium";
 
   return (
     <button

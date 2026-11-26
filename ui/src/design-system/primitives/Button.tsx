@@ -11,6 +11,7 @@ interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "cla
   fullWidth?: boolean;
   iconOnly?: boolean;
   dashed?: boolean;
+  tall?: boolean;
 }
 
 const SIZE_CLS: Record<ControlSize, string> = {
@@ -32,28 +33,29 @@ export function Button({
   fullWidth = false,
   iconOnly = false,
   dashed = false,
+  tall = false,
   type = "button",
   children,
   ...rest
 }: ButtonProps) {
-  let tone = "bg-[var(--surface-2)] text-[var(--fg)] hover:brightness-95";
+  let tone = "bg-[var(--surface-2)] text-[var(--fg)] hover:bg-[var(--surface-3)]";
   if (variant === "primary") {
     tone = "bg-[var(--brand)] text-[var(--brand-fg)] font-semibold hover:brightness-95";
   } else if (variant === "ghost") {
     tone = "bg-transparent text-[var(--fg)] hover:bg-[var(--surface-2)]";
   } else if (variant === "danger") {
-    tone = "bg-[var(--surface-2)] text-[var(--status-danger)] hover:brightness-95";
+    tone = "bg-[var(--surface-2)] text-[var(--status-danger)] hover:bg-[var(--surface-3)]";
   }
 
   if (dashed && !active) {
-    tone = "border border-dashed border-[var(--hw-stroke)] bg-[var(--surface-0)] text-[var(--fg)] hover:bg-[var(--surface-2)]";
+    tone = "border border-dashed border-[var(--border-strong)] bg-[var(--surface-0)] text-[var(--fg)] hover:bg-[var(--surface-3)]";
   }
 
   if (active && variant !== "primary") {
     tone =
       variant === "ghost"
-        ? "bg-[var(--surface-2)] text-[var(--fg)] font-semibold"
-        : "bg-[var(--fg)] text-[var(--surface-0)] font-semibold";
+        ? "bg-[var(--surface-2)] text-[var(--fg)]"
+        : "bg-[var(--fg)] text-[var(--surface-0)]";
   }
 
   return (
@@ -61,7 +63,7 @@ export function Button({
       type={type}
       data-variant={variant === "primary" ? "primary" : undefined}
       data-active={active ? "true" : undefined}
-      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] font-medium grip-transition grip-focus cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed shrink-0 ${iconOnly ? ICON_SIZE_CLS[size] : SIZE_CLS[size]} ${tone} ${fullWidth ? "w-full min-w-0" : ""}`}
+      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] font-medium grip-transition grip-focus cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed shrink-0 ${iconOnly ? ICON_SIZE_CLS[size] : tall ? "min-h-[72px] px-4 py-3 text-sm" : SIZE_CLS[size]} ${tone} ${fullWidth ? "w-full min-w-0" : ""}`}
       {...rest}
     >
       {children}

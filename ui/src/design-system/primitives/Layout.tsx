@@ -52,15 +52,21 @@ export function SurfaceCard({
   children,
   className = "",
   primaryContent = false,
+  stableFrame = false,
+  compactPage = false,
 }: {
   children: ReactNode;
   className?: string;
   primaryContent?: boolean;
+  stableFrame?: boolean;
+  compactPage?: boolean;
 }) {
   return (
     <section
       data-card="true"
       data-primary-content={primaryContent ? "true" : undefined}
+      data-stable-frame={stableFrame ? "true" : undefined}
+      data-compact-page={compactPage ? "true" : undefined}
       className={`bg-[var(--surface-1)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 sm:p-5 ${className}`}
     >
       {children}
@@ -103,7 +109,7 @@ export function AppShell({
         <div className={`${sidebar ? "lg:hidden" : "md:hidden"} border-b border-[var(--border)] bg-[var(--surface-1)] px-3 py-1.5`}>
           {mobileNav}
         </div>
-        <main className="w-full flex-1 min-w-0 px-4 sm:px-6 py-4 flex flex-col gap-4">{children}</main>
+        <main className="w-full flex-1 min-h-0 min-w-0 px-4 sm:px-6 py-4 flex flex-col gap-4">{children}</main>
       </div>
     </div>
   );

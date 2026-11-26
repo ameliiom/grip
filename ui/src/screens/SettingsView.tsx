@@ -13,7 +13,7 @@ import {
   SurfaceInset,
   Switch,
 } from "../design-system/primitives";
-import type { Locale, Vocab } from "../i18n/vocab";
+import { cleanDeviceDisplayName, type Locale, type Vocab } from "../i18n/vocab";
 
 export function SettingsView({
   settings,
@@ -44,9 +44,9 @@ export function SettingsView({
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 items-stretch">
       {/* Startup & Behavior */}
-      <SurfaceCard primaryContent={true} className="xl:col-span-7 min-w-0">
+      <SurfaceCard primaryContent={true} stableFrame={true} className="lg:col-span-7 min-w-0 h-full">
         <Stack gap="4">
           <h2 className="text-base font-bold">{vocab.settingsBehaviorTitle}</h2>
 
@@ -124,8 +124,8 @@ export function SettingsView({
       </SurfaceCard>
 
       {/* Appearance & Collapsed Support Disclosure */}
-      <Stack gap="4" className="xl:col-span-5 min-w-0">
-        <SurfaceCard>
+      <Stack gap="4" className="lg:col-span-5 min-w-0 h-full justify-between">
+        <SurfaceCard className="flex-1">
           <Stack gap="4">
             <Inline gap="2" wrap={false}>
               <Palette size={17} strokeWidth={2} />
@@ -189,7 +189,7 @@ export function SettingsView({
                     <Stack gap="2">
                       <Inline gap="2" justify="between" wrap={true}>
                         <span className="text-xs text-[var(--fg-muted)]">{vocab.deviceModelLabel}</span>
-                        <span className="text-xs font-semibold">{device.name}</span>
+                        <span className="text-xs font-semibold">{cleanDeviceDisplayName(device.name)}</span>
                       </Inline>
                       <Inline gap="2" justify="between" wrap={true}>
                         <span className="text-xs text-[var(--fg-muted)]">{vocab.firmwareVersionLabel}</span>

@@ -218,23 +218,35 @@ export function WorkspaceShell({
   ) : undefined;
 
   const headerContent = (
-    <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-      {!useSidebar ? (
-        <DeviceIdentityBar
-          appName={vocab.appName}
-          device={device}
-          devices={workspace?.devices ?? []}
-          vocab={vocab}
-          onSelectDevice={onSelectDevice}
-        />
-      ) : (
-        <span className="text-base font-bold">
-          {([...primaryNav, { id: "settings" as const, label: vocab.navSettings }].find((n) => n.id === section)?.label) ?? vocab.appName}
-        </span>
-      )}
+    <div
+      className={
+        !useSidebar
+          ? "flex flex-wrap items-center justify-between gap-2 w-full md:grid md:grid-cols-[1fr_auto_1fr] md:items-center"
+          : "flex flex-wrap items-center justify-between gap-2 w-full"
+      }
+    >
+      <div className={!useSidebar ? "justify-self-start min-w-0" : "min-w-0"}>
+        {!useSidebar ? (
+          <DeviceIdentityBar
+            appName={vocab.appName}
+            device={device}
+            devices={workspace?.devices ?? []}
+            vocab={vocab}
+            onSelectDevice={onSelectDevice}
+          />
+        ) : (
+          <span className="text-base font-bold">
+            {([...primaryNav, { id: "settings" as const, label: vocab.navSettings }].find((n) => n.id === section)?.label) ?? vocab.appName}
+          </span>
+        )}
+      </div>
 
       {!useSidebar ? (
-        <nav className="hidden md:flex items-center" aria-label={vocab.appName}>
+        <nav
+          data-shift-probe="nav"
+          className="hidden md:flex items-center justify-self-center"
+          aria-label={vocab.appName}
+        >
           <SegmentedControl
             ariaLabel={vocab.appName}
             size="sm"
@@ -251,35 +263,47 @@ export function WorkspaceShell({
         </nav>
       ) : null}
 
-      <div className="flex items-center gap-1.5 shrink-0">
-        {device && section !== "profiles" ? (
-          <Popover
-            open={profileMenuOpen}
-            onOpenChange={setProfileMenuOpen}
-            trigger={
-              <Button variant="secondary" size="sm" aria-label={vocab.profilesTitle}>
-                <span className="truncate max-w-[100px]">{device.activeProfile}</span>
-                <ChevronDown size={14} strokeWidth={2} />
-              </Button>
-            }
+      <div className={`flex items-center gap-1.5 shrink-0 ${!useSidebar ? "justify-self-end" : ""}`}>
+        {device ? (
+          <div
+            className={section === "profiles" ? "invisible pointer-events-none select-none" : ""}
+            aria-hidden={section === "profiles" || undefined}
           >
-            <Stack gap="2">
-              <span className="text-xs font-semibold text-[var(--fg-muted)]">{vocab.profilesTitle}</span>
-              <ChoiceChips
-                ariaLabel={vocab.profilesTitle}
-                size="sm"
-                value={device.activeProfile}
-                onChange={(name) => {
-                  onSelectProfile(name);
-                  setProfileMenuOpen(false);
-                }}
-                options={device.profiles.map((p) => ({
-                  value: p.name,
-                  label: p.name,
-                }))}
-              />
-            </Stack>
-          </Popover>
+            <Popover
+              open={profileMenuOpen && section !== "profiles"}
+              onOpenChange={(o) => {
+                if (section !== "profiles") setProfileMenuOpen(o);
+              }}
+              trigger={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  tabIndex={section === "profiles" ? -1 : undefined}
+                  aria-label={vocab.profilesTitle}
+                >
+                  <span className="truncate max-w-[100px]">{device.activeProfile}</span>
+                  <ChevronDown size={14} strokeWidth={2} />
+                </Button>
+              }
+            >
+              <Stack gap="2">
+                <span className="text-xs font-semibold text-[var(--fg-muted)]">{vocab.profilesTitle}</span>
+                <ChoiceChips
+                  ariaLabel={vocab.profilesTitle}
+                  size="sm"
+                  value={device.activeProfile}
+                  onChange={(name) => {
+                    onSelectProfile(name);
+                    setProfileMenuOpen(false);
+                  }}
+                  options={device.profiles.map((p) => ({
+                    value: p.name,
+                    label: p.name,
+                  }))}
+                />
+              </Stack>
+            </Popover>
+          </div>
         ) : null}
 
         <Button
@@ -370,7 +394,7 @@ export function WorkspaceShell({
       ) : null}
 
       {!device && section !== "settings" ? (
-        <SurfaceCard primaryContent={true}>
+        <SurfaceCard primaryContent={true} compactPage={true}>
           <Stack gap="4" className="items-start">
             <h1 className="text-lg font-bold">{vocab.noDevicesTitle}</h1>
             <p className="text-sm text-[var(--fg-muted)]">{vocab.noDevicesBody}</p>

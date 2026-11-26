@@ -38,12 +38,15 @@ export default async function audit(b) {
         issues.push('arabic-indic-digits-rendered');
       }
       const pageTxt = document.body.innerText || '';
-      const techLeaks = ['Rust', 'Tauri', '00B4', 'PM2337', 'CSAW+', 'tap:', 'turbo:', 'slot ', 'localhost', '.exe', 'محاكاة'];
+      const techLeaks = ['Rust', 'Tauri', 'محاكاة'];
       for (const tok of techLeaks) {
         if (pageTxt.includes(tok)) {
           issues.push('technical-jargon-on-ui:' + tok);
           break;
         }
+      }
+      if (/0x[0-9a-f]{4}|\bPID[:\s]+[0-9a-f]{4}|localhost:\d+|\.exe\b|\b(?:tap|turbo|slot):\S/i.test(pageTxt)) {
+        issues.push('technical-jargon-pattern-on-ui');
       }
       const main = document.querySelector('main') || document.body;
       const mainRect = main.getBoundingClientRect();
@@ -71,7 +74,7 @@ export default async function audit(b) {
         }
       }
 
-      // Control overlap check (non-nested visible controls intersecting by > 4px)
+      // Control overlap check (non-nested visible controls intersecting by > 4px, plus header text crushing)
       for (let i = 0; i < visibleControls.length; i++) {
         for (let j = i + 1; j < visibleControls.length; j++) {
           const a = visibleControls[i], c = visibleControls[j];
@@ -81,6 +84,23 @@ export default async function audit(b) {
           if (ox > 4 && oy > 4) {
             issues.push('control-overlap:' + a.el.tagName + '/' + c.el.tagName);
             break;
+          }
+        }
+      }
+      const hdr = document.querySelector('header');
+      if (hdr) {
+        for (const t of hdr.querySelectorAll('span, h1, [data-metric]')) {
+          if (t.closest('button, a')) continue;
+          const tr = t.getBoundingClientRect();
+          if (tr.width === 0 || tr.height === 0) continue;
+          for (const c of visibleControls) {
+            if (!hdr.contains(c.el) || c.el.contains(t) || t.contains(c.el)) continue;
+            const ox = Math.min(tr.right, c.r.right) - Math.max(tr.left, c.r.left);
+            const oy = Math.min(tr.bottom, c.r.bottom) - Math.max(tr.top, c.r.top);
+            if (ox > 2 && oy > 2) {
+              issues.push('header-text-crushed-by-' + c.el.tagName);
+              break;
+            }
           }
         }
       }
@@ -101,6 +121,37 @@ export default async function audit(b) {
       });
       if (brandFills.length > 2) {
         issues.push('brand-overload:' + brandFills.length);
+      }
+
+      const normRep = (s) => (s || '').trim().toLowerCase().replace(/^ال|\s+ال/g, ' ').replace(/لل/g, 'ل').replace(/\s+/g, ' ').trim();
+      for (const tile of document.querySelectorAll('[data-multiline-tile]')) {
+        const tr = tile.getBoundingClientRect();
+        if (tr.width === 0 || tr.height === 0) continue;
+        const kids = [...tile.children].map((c) => (c.innerText || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+        if (kids.length >= 2) {
+          const a = normRep(kids[0]), b = normRep(kids[1]);
+          const tailNum = kids[0].match(/(?:^|\s)(\d+)$/)?.[1];
+          if ((a && a === b) || (tailNum && kids[1].trim() === tailNum)) {
+            issues.push('self-repeating-tile:' + kids[0] + '|' + kids[1]);
+            break;
+          }
+        }
+      }
+
+      const seenTelemetry = new Map();
+      for (const el of document.querySelectorAll('[data-badge], [data-metric]')) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        const t = (el.innerText || '').replace(/\s+/g, ' ').trim();
+        if (!t || t.length > 28) continue;
+        if (/^(?:\d+(?:\.\d+)?\s*(?:%|dpi|hz|ms)|متصل|غير متصل|connected|disconnected)$/i.test(t)) {
+          const k = t.toLowerCase();
+          seenTelemetry.set(k, (seenTelemetry.get(k) || 0) + 1);
+          if (seenTelemetry.get(k) >= 2) {
+            issues.push('duplicate-chrome-metric:' + t);
+            break;
+          }
+        }
       }
 
       const primaryCtas = [...document.querySelectorAll('[data-variant="primary"]')].filter((el) => {

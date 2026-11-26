@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronDown, Copy, FolderOpen, Palette, RefreshCw } from "lucide-react";
+import { CheckCircle2, ChevronDown, Copy, FolderOpen, Moon, Palette, RefreshCw, Sun } from "lucide-react";
 import { useState } from "react";
 import type { AppSettings, DeviceSnapshot, FirmwareCheckResult } from "../acl/transport";
 import { BrandColorPicker } from "../design-system/BrandColorPicker";
@@ -140,8 +140,8 @@ export function SettingsView({
                 value={settings.theme}
                 onChange={(t) => patch({ theme: t })}
                 options={[
-                  { value: "dark", label: vocab.themeDark },
-                  { value: "light", label: vocab.themeLight },
+                  { value: "dark", label: vocab.themeDark, icon: <Moon size={14} strokeWidth={2} /> },
+                  { value: "light", label: vocab.themeLight, icon: <Sun size={14} strokeWidth={2} /> },
                 ]}
               />
             </Inline>

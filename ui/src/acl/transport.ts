@@ -85,6 +85,7 @@ export interface DeviceSummary {
 export interface RunningApp {
   exe: string;
   displayName: string;
+  iconDataUrl?: string | null;
 }
 
 export interface AppSettings {
@@ -305,10 +306,10 @@ const simState: {
     activeDevice: structuredClone(SIM_DEVICE),
     synapseRunning: [],
     runningApps: [
-      { exe: "chrome.exe", displayName: "Google Chrome" },
-      { exe: "cs2.exe", displayName: "Counter-Strike 2" },
-      { exe: "valorant.exe", displayName: "Valorant" },
-      { exe: "discord.exe", displayName: "Discord" },
+      { exe: "chrome.exe", displayName: "Google Chrome", iconDataUrl: null },
+      { exe: "cs2.exe", displayName: "Counter-Strike 2", iconDataUrl: null },
+      { exe: "valorant.exe", displayName: "Valorant", iconDataUrl: null },
+      { exe: "discord.exe", displayName: "Discord", iconDataUrl: null },
     ],
     settings: {
       autostart: false,

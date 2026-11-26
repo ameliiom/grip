@@ -5,80 +5,74 @@ use serde::{Deserialize, Serialize};
 pub struct RunningApp {
     pub exe: String,
     pub display_name: String,
+    pub icon_data_url: Option<String>,
 }
 
-pub fn pretty_exe_name(exe: &str) -> String {
-    let stem = exe
-        .trim()
-        .rsplit(['\\', '/'])
-        .next()
-        .unwrap_or(exe)
+/// Purely algorithmic fallback when an executable exposes no OS PE version description.
+pub fn humanize_exe_stem(exe: &str) -> String {
+    let base = exe.trim().rsplit(['\\', '/']).next().unwrap_or(exe).trim();
+    let stem = base
         .strip_suffix(".exe")
-        .or_else(|| exe.strip_suffix(".EXE"))
-        .unwrap_or(exe)
+        .or_else(|| base.strip_suffix(".EXE"))
+        .unwrap_or(base)
         .trim();
-    match stem.to_ascii_lowercase().as_str() {
-        "cs2" => "Counter-Strike 2".into(),
-        "valorant-win64-shipping" | "valorant" => "Valorant".into(),
-        "chrome" => "Google Chrome".into(),
-        "msedge" => "Microsoft Edge".into(),
-        "zen" => "Zen Browser".into(),
-        "firefox" => "Firefox".into(),
-        "discord" => "Discord".into(),
-        "code" => "VS Code".into(),
-        "spotify" => "Spotify".into(),
-        "obs64" => "OBS Studio".into(),
-        "steamwebhelper" | "steam" => "Steam".into(),
-        other if !other.is_empty() => other
-            .split(['-', '_'])
-            .filter(|s| !s.is_empty())
-            .map(|w| {
-                let mut ch = w.chars();
-                match ch.next() {
-                    Some(first) => first.to_uppercase().collect::<String>() + ch.as_str(),
-                    None => String::new(),
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(" "),
-        _ => exe.to_string(),
+    let words: Vec<String> = stem
+        .split(['-', '_', '.'])
+        .filter(|s| !s.is_empty())
+        .map(|w| {
+            let mut ch = w.chars();
+            match ch.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + ch.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect();
+    if words.is_empty() {
+        exe.to_string()
+    } else {
+        words.join(" ")
     }
 }
 
 #[cfg(windows)]
 mod imp {
-    use super::{pretty_exe_name, RunningApp};
+    use super::{humanize_exe_stem, RunningApp};
+    use base64::Engine;
     use std::cell::{Cell, RefCell};
     use std::collections::BTreeMap;
+    use std::ffi::c_void;
     use std::mem::zeroed;
     use std::path::Path;
     use std::ptr::{null, null_mut};
     use std::sync::atomic::{AtomicU32, Ordering};
-    use std::sync::{Arc, OnceLock};
+    use std::sync::{Arc, Mutex, OnceLock};
     use windows_sys::Win32::Foundation::{
         CloseHandle, GetLastError, BOOL, ERROR_ALREADY_EXISTS, HANDLE, HWND, LPARAM, LRESULT, RECT, SIZE, TRUE, WPARAM,
     };
     use windows_sys::Win32::Graphics::Gdi::{
-        BeginPaint, CreateFontW, CreateRoundRectRgn, CreateSolidBrush, DeleteObject, DrawTextW, EndPaint, FillRect,
-        GetDC, GetDeviceCaps, InvalidateRect, ReleaseDC, SelectObject, SetBkMode, SetTextColor, SetWindowRgn,
-        CLEARTYPE_QUALITY, CLIP_DEFAULT_PRECIS, DEFAULT_CHARSET, DEFAULT_PITCH, DT_CENTER, DT_SINGLELINE, DT_VCENTER,
+        BeginPaint, CreateCompatibleDC, CreateDIBSection, CreateFontW, CreateRoundRectRgn, CreateSolidBrush, DeleteDC,
+        DeleteObject, DrawTextW, EndPaint, FillRect, GetDC, GetDeviceCaps, InvalidateRect, ReleaseDC, SelectObject,
+        SetBkMode, SetTextColor, SetWindowRgn, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, CLEARTYPE_QUALITY,
+        CLIP_DEFAULT_PRECIS, DEFAULT_CHARSET, DEFAULT_PITCH, DIB_RGB_COLORS, DT_CENTER, DT_SINGLELINE, DT_VCENTER,
         FF_DONTCARE, FW_SEMIBOLD, HFONT, LOGPIXELSY, OUT_DEFAULT_PRECIS, PAINTSTRUCT, TRANSPARENT,
     };
+    use windows_sys::Win32::Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW};
     use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
     use windows_sys::Win32::System::Threading::{
         CreateMutexW, GetCurrentThreadId, OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
         PROCESS_QUERY_LIMITED_INFORMATION,
     };
     use windows_sys::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
-    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    use windows_sys::Win32::UI::Shell::{ExtractIconExW, ShellExecuteW};
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        CreateWindowExW, DefWindowProcW, DispatchMessageW, EnumWindows, FindWindowW, GetClientRect,
-        GetForegroundWindow, GetMessageW, GetWindow, GetWindowTextLengthW, GetWindowThreadProcessId, IsWindowVisible,
-        KillTimer, LoadCursorW, PostThreadMessageW, RegisterClassW, SetForegroundWindow, SetLayeredWindowAttributes,
-        SetTimer, SetWindowPos, ShowWindow, SystemParametersInfoW, TranslateMessage, GW_OWNER, HTTRANSPARENT,
-        HWND_TOPMOST, IDC_ARROW, LWA_ALPHA, MSG, SPI_GETWORKAREA, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_HIDE, SW_RESTORE,
-        SW_SHOWNORMAL, WM_APP, WM_NCHITTEST, WM_PAINT, WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE,
-        WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+        CreateWindowExW, DefWindowProcW, DestroyIcon, DispatchMessageW, DrawIconEx, EnumWindows, FindWindowW,
+        GetClientRect, GetForegroundWindow, GetMessageW, GetWindow, GetWindowTextLengthW, GetWindowThreadProcessId,
+        IsWindowVisible, KillTimer, LoadCursorW, PostThreadMessageW, RegisterClassW, SetForegroundWindow,
+        SetLayeredWindowAttributes, SetTimer, SetWindowPos, ShowWindow, SystemParametersInfoW, TranslateMessage,
+        DI_NORMAL, GW_OWNER, HICON, HTTRANSPARENT, HWND_TOPMOST, IDC_ARROW, LWA_ALPHA, MSG, SPI_GETWORKAREA,
+        SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_HIDE, SW_RESTORE, SW_SHOWNORMAL, WM_APP, WM_NCHITTEST, WM_PAINT,
+        WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
+        WS_POPUP,
     };
 
     const WM_SHOW_OSD: u32 = WM_APP + 21;
@@ -118,7 +112,7 @@ mod imp {
         }
     }
 
-    unsafe fn exe_of(hwnd: HWND) -> Option<String> {
+    unsafe fn exe_of(hwnd: HWND) -> Option<(String, String)> {
         if hwnd.is_null() {
             return None;
         }
@@ -140,14 +134,175 @@ mod imp {
         }
         let raw = String::from_utf16_lossy(&buf[..len as usize]);
         let norm = secbird_core::profile::normalize_app(&raw);
-        (!norm.is_empty()).then_some(norm)
+        (!norm.is_empty()).then_some((norm, raw))
+    }
+
+    static APP_META_CACHE: OnceLock<Mutex<BTreeMap<String, (String, Option<String>)>>> = OnceLock::new();
+
+    unsafe fn read_version_string(full_path: &str) -> Option<String> {
+        let path_w = wide(full_path);
+        let mut handle = 0u32;
+        let size = GetFileVersionInfoSizeW(path_w.as_ptr(), &mut handle);
+        if size == 0 {
+            return None;
+        }
+        let mut data = vec![0u8; size as usize];
+        if GetFileVersionInfoW(path_w.as_ptr(), 0, size, data.as_mut_ptr().cast()) == 0 {
+            return None;
+        }
+        let mut langs: Vec<(u16, u16)> = Vec::new();
+        let mut trans_ptr: *mut c_void = null_mut();
+        let mut trans_len = 0u32;
+        if VerQueryValueW(
+            data.as_ptr().cast(),
+            wide("\\VarFileInfo\\Translation").as_ptr(),
+            &mut trans_ptr,
+            &mut trans_len,
+        ) != 0
+            && !trans_ptr.is_null()
+            && trans_len >= 4
+        {
+            let pairs = std::slice::from_raw_parts(trans_ptr.cast::<u16>(), (trans_len as usize) / 2);
+            for chunk in pairs.chunks_exact(2) {
+                langs.push((chunk[0], chunk[1]));
+            }
+        }
+        for fallback in [(0x0409u16, 0x04B0u16), (0x0409u16, 0x04E4u16), (0x0000u16, 0x04B0u16)] {
+            if !langs.contains(&fallback) {
+                langs.push(fallback);
+            }
+        }
+        for (lang, cp) in langs {
+            for field in ["FileDescription", "ProductName"] {
+                let query = wide(&format!("\\StringFileInfo\\{lang:04X}{cp:04X}\\{field}"));
+                let mut val_ptr: *mut c_void = null_mut();
+                let mut val_len = 0u32;
+                if VerQueryValueW(data.as_ptr().cast(), query.as_ptr(), &mut val_ptr, &mut val_len) != 0
+                    && !val_ptr.is_null()
+                    && val_len > 1
+                {
+                    let slice = std::slice::from_raw_parts(val_ptr.cast::<u16>(), val_len as usize);
+                    let end = slice.iter().position(|&c| c == 0).unwrap_or(slice.len());
+                    let s = String::from_utf16_lossy(&slice[..end]).trim().to_string();
+                    if !s.is_empty() && !s.eq_ignore_ascii_case("application") {
+                        return Some(s);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    unsafe fn extract_icon_png_data_url(full_path: &str) -> Option<String> {
+        const ICON_SIZE: i32 = 32;
+        let path_w = wide(full_path);
+        let mut hicon: HICON = null_mut();
+        if ExtractIconExW(path_w.as_ptr(), 0, &mut hicon, null_mut(), 1) == 0 || hicon.is_null() {
+            return None;
+        }
+
+        let screen_dc = GetDC(null_mut());
+        let mem_dc = CreateCompatibleDC(screen_dc);
+        let mut bmi: BITMAPINFO = zeroed();
+        bmi.bmiHeader = BITMAPINFOHEADER {
+            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: ICON_SIZE,
+            biHeight: -ICON_SIZE,
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB,
+            ..zeroed()
+        };
+
+        let mut bits_ptr: *mut c_void = null_mut();
+        let hbmp = CreateDIBSection(mem_dc, &bmi, DIB_RGB_COLORS, &mut bits_ptr, null_mut(), 0);
+        if hbmp.is_null() || bits_ptr.is_null() {
+            if !hbmp.is_null() {
+                DeleteObject(hbmp.cast());
+            }
+            DeleteDC(mem_dc);
+            if !screen_dc.is_null() {
+                ReleaseDC(null_mut(), screen_dc);
+            }
+            DestroyIcon(hicon);
+            return None;
+        }
+
+        let px_bytes = (ICON_SIZE * ICON_SIZE * 4) as usize;
+        std::ptr::write_bytes(bits_ptr.cast::<u8>(), 0, px_bytes);
+        let old = SelectObject(mem_dc, hbmp.cast());
+        let drawn = DrawIconEx(mem_dc, 0, 0, hicon, ICON_SIZE, ICON_SIZE, 0, null_mut(), DI_NORMAL) != 0;
+        let bgra = std::slice::from_raw_parts(bits_ptr.cast::<u8>(), px_bytes).to_vec();
+        SelectObject(mem_dc, old);
+        DeleteObject(hbmp.cast());
+        DeleteDC(mem_dc);
+        if !screen_dc.is_null() {
+            ReleaseDC(null_mut(), screen_dc);
+        }
+        DestroyIcon(hicon);
+        if !drawn {
+            return None;
+        }
+
+        let any_alpha = bgra.chunks_exact(4).any(|p| p[3] != 0);
+        let any_rgb = bgra.chunks_exact(4).any(|p| p[0] != 0 || p[1] != 0 || p[2] != 0);
+        if !any_alpha && !any_rgb {
+            return None;
+        }
+
+        let mut rgba = vec![0u8; px_bytes];
+        for (dst, src) in rgba.chunks_exact_mut(4).zip(bgra.chunks_exact(4)) {
+            let (b, g, r, a) = (src[0], src[1], src[2], src[3]);
+            if any_alpha {
+                if a == 0 {
+                    dst.copy_from_slice(&[0, 0, 0, 0]);
+                } else if a < 255 {
+                    let ua = a as u16;
+                    dst[0] = ((r as u16 * 255) / ua).min(255) as u8;
+                    dst[1] = ((g as u16 * 255) / ua).min(255) as u8;
+                    dst[2] = ((b as u16 * 255) / ua).min(255) as u8;
+                    dst[3] = a;
+                } else {
+                    dst.copy_from_slice(&[r, g, b, 255]);
+                }
+            } else if r != 0 || g != 0 || b != 0 {
+                dst.copy_from_slice(&[r, g, b, 255]);
+            }
+        }
+
+        let mut png_bytes = Vec::with_capacity(2048);
+        let mut enc = png::Encoder::new(&mut png_bytes, ICON_SIZE as u32, ICON_SIZE as u32);
+        enc.set_color(png::ColorType::Rgba);
+        enc.set_depth(png::BitDepth::Eight);
+        let mut writer = enc.write_header().ok()?;
+        writer.write_image_data(&rgba).ok()?;
+        writer.finish().ok()?;
+
+        let b64 = base64::engine::general_purpose::STANDARD.encode(png_bytes);
+        Some(format!("data:image/png;base64,{b64}"))
+    }
+
+    fn resolve_app_metadata(full_path: &str, exe: &str) -> (String, Option<String>) {
+        let cache = APP_META_CACHE.get_or_init(|| Mutex::new(BTreeMap::new()));
+        if let Ok(guard) = cache.lock() {
+            if let Some(hit) = guard.get(full_path) {
+                return hit.clone();
+            }
+        }
+        let name = unsafe { read_version_string(full_path) }.unwrap_or_else(|| humanize_exe_stem(exe));
+        let icon = unsafe { extract_icon_png_data_url(full_path) };
+        let pair = (name, icon);
+        if let Ok(mut guard) = cache.lock() {
+            guard.insert(full_path.to_string(), pair.clone());
+        }
+        pair
     }
 
     pub fn running_apps() -> Vec<RunningApp> {
         unsafe extern "system" fn each(hwnd: HWND, map_ptr: LPARAM) -> BOOL {
-            let map = &mut *(map_ptr as *mut BTreeMap<String, String>);
+            let map = &mut *(map_ptr as *mut BTreeMap<String, RunningApp>);
             if IsWindowVisible(hwnd) != 0 && GetWindow(hwnd, GW_OWNER).is_null() && GetWindowTextLengthW(hwnd) > 0 {
-                if let Some(exe) = exe_of(hwnd) {
+                if let Some((exe, full_path)) = exe_of(hwnd) {
                     if !matches!(
                         exe.as_str(),
                         "explorer.exe"
@@ -157,18 +312,25 @@ mod imp {
                             | "searchhost.exe"
                             | "grip.exe"
                             | "grip-app.exe"
-                    ) {
-                        map.entry(exe.clone()).or_insert_with(|| pretty_exe_name(&exe));
+                    ) && !map.contains_key(&exe)
+                    {
+                        let (display_name, icon_data_url) = resolve_app_metadata(&full_path, &exe);
+                        map.insert(
+                            exe.clone(),
+                            RunningApp {
+                                exe,
+                                display_name,
+                                icon_data_url,
+                            },
+                        );
                     }
                 }
             }
             TRUE
         }
-        let mut map = BTreeMap::new();
+        let mut map: BTreeMap<String, RunningApp> = BTreeMap::new();
         unsafe { EnumWindows(Some(each), &mut map as *mut _ as LPARAM) };
-        map.into_iter()
-            .map(|(exe, display_name)| RunningApp { exe, display_name })
-            .collect()
+        map.into_values().collect()
     }
 
     pub fn open_folder(path: &Path) {
@@ -395,7 +557,7 @@ mod imp {
                 while GetMessageW(&mut msg, null_mut(), 0, 0) > 0 {
                     if msg.hwnd == hwnd && msg.message == WM_TIMER && msg.wParam == TIMER_FG_SETTLE {
                         KillTimer(hwnd, TIMER_FG_SETTLE);
-                        if let Some(exe) = exe_of(GetForegroundWindow()) {
+                        if let Some((exe, _)) = exe_of(GetForegroundWindow()) {
                             if exe != last_exe {
                                 last_exe = exe.clone();
                                 on_app(exe);
@@ -453,3 +615,14 @@ mod imp {
 }
 
 pub use imp::{acquire_single_instance, open_folder, running_apps, show_osd, start_foreground_watcher};
+
+#[cfg(test)]
+mod tests {
+    use super::humanize_exe_stem;
+
+    #[test]
+    fn algorithmic_exe_stem_formatting_handles_paths_and_separators() {
+        assert_eq!(humanize_exe_stem("C:\\Games\\star-citizen_live.exe"), "Star Citizen Live");
+        assert_eq!(humanize_exe_stem("notepad.exe"), "Notepad");
+    }
+}

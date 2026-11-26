@@ -230,23 +230,49 @@ export function formatMinutesLabel(minutes: number, locale: Locale): string {
   return `${minutes} دقيقة`;
 }
 
+export function formatLatencyMs(hz: number, locale: Locale): string {
+  const safeHz = Math.max(1, hz);
+  const ms = 1000 / safeHz;
+  const formatted = ms >= 1 ? `${Math.round(ms * 10) / 10}` : `${Math.round(ms * 1000) / 1000}`;
+  return locale === "ar" ? `${safeHz} · ${formatted} مللي` : `${safeHz} · ${formatted}ms`;
+}
+
+export function computeErgonomicStops(min: number, max: number, step: number): number[] {
+  const safeMin = Math.max(50, min);
+  const safeMax = Math.max(safeMin + step, max);
+  const count = 7;
+  const stops: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const t = i / (count - 1);
+    const raw = safeMin * Math.pow(safeMax / safeMin, t);
+    const snapped = safeMin + Math.round((raw - safeMin) / step) * step;
+    const clamped = Math.min(safeMax, Math.max(safeMin, snapped));
+    if (stops[stops.length - 1] !== clamped) stops.push(clamped);
+  }
+  if (stops[0] !== safeMin) stops[0] = safeMin;
+  if (stops[stops.length - 1] !== safeMax) stops[stops.length - 1] = safeMax;
+  return stops;
+}
+
+export function computeSleepChoices(maxMinutes: number | null): number[] {
+  if (!maxMinutes || maxMinutes < 1) return [];
+  const targets = [0.06, 0.2, 0.35, 0.65, 1.0];
+  const out: number[] = [];
+  for (const frac of targets) {
+    const val = Math.min(maxMinutes, Math.max(1, Math.round(maxMinutes * frac)));
+    if (!out.includes(val)) out.push(val);
+  }
+  return out;
+}
+
 export function formatFriendlyAppName(exe: string): string {
   const clean = exe.trim().replace(/^.*[/\\]/, "");
-  const stem = clean.replace(/\.exe$/i, "");
-  const known: Record<string, string> = {
-    cs2: "Counter-Strike 2",
-    "valorant-win64-shipping": "Valorant",
-    valorant: "Valorant",
-    chrome: "Google Chrome",
-    msedge: "Microsoft Edge",
-    zen: "Zen Browser",
-    firefox: "Firefox",
-    discord: "Discord",
-    code: "VS Code",
-    spotify: "Spotify",
-    obs64: "OBS Studio",
-  };
-  return known[stem.toLowerCase()] ?? (stem || exe);
+  const stem = clean.replace(/\.exe$/i, "").trim();
+  const words = stem
+    .split(/[-_.]+/)
+    .filter(Boolean)
+    .map((w) => (w[0] ?? "").toUpperCase() + w.slice(1));
+  return words.join(" ") || clean || exe;
 }
 
 export const BUTTON_LABELS: Record<Locale, Record<string, string>> = {
@@ -337,6 +363,7 @@ export interface Vocab {
   viewSide: string;
   viewTop: string;
   viewBoth: string;
+  defaultActionLabel: string;
   topBodyLabel: string;
   sideBodyLabel: string;
   thumbKeypadCount: string;
@@ -474,9 +501,10 @@ export const VOCAB: Record<Locale, Vocab> = {
     layerPrimary: "الوضع الأساسي",
     layerSecondary: "الوضع الإضافي",
     layerSecondaryHeldBy: "يتفعّل بالضغط المطوّل على",
-    viewSide: "الجانب (12 زر)",
-    viewTop: "الأعلى (9 أزرار)",
+    viewSide: "الجانب",
+    viewTop: "الأعلى",
     viewBoth: "كلا المنظورين",
+    defaultActionLabel: "افتراضي",
     topBodyLabel: "الأزرار العلوية والعجلة",
     sideBodyLabel: "الأزرار الجانبية للإبهام",
     thumbKeypadCount: "12 زر",
@@ -612,9 +640,10 @@ export const VOCAB: Record<Locale, Vocab> = {
     layerPrimary: "Primary layer",
     layerSecondary: "Secondary layer",
     layerSecondaryHeldBy: "Activated while holding",
-    viewSide: "Side (12)",
-    viewTop: "Top (9)",
+    viewSide: "Side",
+    viewTop: "Top",
     viewBoth: "Dual view",
+    defaultActionLabel: "Default",
     topBodyLabel: "Top buttons & scroll wheel",
     sideBodyLabel: "Side thumb keypad",
     thumbKeypadCount: "12 keys",

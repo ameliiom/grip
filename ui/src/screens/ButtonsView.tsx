@@ -90,10 +90,11 @@ export function ButtonsView({
 
           <HardwareBlueprint
             selectedButton={effectiveSelected}
+            kind={device.kind}
+            capabilities={device.capabilities}
             buttons={device.buttons}
             layer={layer}
             view={view}
-            hasSideGrid12={device.capabilities.hasSideGrid12}
             macros={device.macros}
             locale={locale}
             vocab={vocab}

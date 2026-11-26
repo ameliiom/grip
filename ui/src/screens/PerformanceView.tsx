@@ -1,8 +1,7 @@
-import { Battery, BatteryCharging, Moon, Plus, Sliders, Trash2, Zap } from "lucide-react";
+import { Moon, Plus, Sliders, Trash2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { DeviceSnapshot } from "../acl/transport";
 import {
-  Badge,
   Button,
   ChoiceChips,
   Inline,
@@ -13,8 +12,16 @@ import {
   SurfaceCard,
   SurfaceInset,
   Switch,
+  TileButton,
 } from "../design-system/primitives";
-import { formatMinutesLabel, type Locale, type Vocab } from "../i18n/vocab";
+import {
+  computeErgonomicStops,
+  computeSleepChoices,
+  formatLatencyMs,
+  formatMinutesLabel,
+  type Locale,
+  type Vocab,
+} from "../i18n/vocab";
 
 export function PerformanceView({
   device,
@@ -44,9 +51,14 @@ export function PerformanceView({
     setIndependentXY(currentStage[0] !== currentStage[1]);
   }, [currentStage]);
 
-  const sleepChoices = capabilities.sleepMaxMinutes
-    ? [1, 3, 5, 10, capabilities.sleepMaxMinutes].filter((v, i, a) => a.indexOf(v) === i)
-    : [];
+  const sleepChoices = computeSleepChoices(capabilities.sleepMaxMinutes);
+  const ergonomicStops = computeErgonomicStops(capabilities.dpiMin, capabilities.dpiMax, capabilities.dpiStep);
+  const tickStops = [
+    ergonomicStops[0] ?? capabilities.dpiMin,
+    ergonomicStops[Math.floor(ergonomicStops.length / 3)] ?? capabilities.dpiMin,
+    ergonomicStops[Math.floor((ergonomicStops.length * 2) / 3)] ?? capabilities.dpiMax,
+    ergonomicStops[ergonomicStops.length - 1] ?? capabilities.dpiMax,
+  ];
 
   const updateCurrentStage = (x: number, y: number) => {
     const nextStages: [number, number][] = dpi.stages.map((st, idx) => (idx === activeIdx ? [x, y] : st));
@@ -68,21 +80,18 @@ export function PerformanceView({
     onCommitDpiStages(nextActive, nextStages);
   };
 
-  const activeText =
-    currentStage[0] === currentStage[1]
-      ? `${currentStage[0]} ${vocab.speedUnit}`
-      : `${currentStage[0]} × ${currentStage[1]} ${vocab.speedUnit}`;
+  const stageValues = dpi.stages.map(([x]) => x);
+  const stageLo = Math.max(capabilities.dpiMin, Math.min(...stageValues, capabilities.dpiMax) - 400);
+  const stageHi = Math.max(stageLo + 400, ...stageValues, capabilities.dpiMin + 1200);
 
-  const pollingLabel = (hz: number) => {
-    if (hz === 125) return locale === "ar" ? "125 • هادئ" : "125 • Saver";
-    if (hz === 500) return locale === "ar" ? "500 • متوازن" : "500 • Fast";
-    if (hz === 1000) return locale === "ar" ? "1000 • فائق" : "1000 • Ultra";
-    return `${hz} ${vocab.pollingUnit}`;
+  const stageBarPercent = (val: number) => {
+    const ratio = (val - stageLo) / Math.max(1, stageHi - stageLo);
+    return Math.max(20, Math.min(100, Math.round(20 + ratio * 80)));
   };
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-      {/* DPI Stage Management & Live Tuning */}
+      {/* Interactive 5-Stage Speed Curve + Single Compound Stage Tuner */}
       {capabilities.hasDpi ? (
         <SurfaceCard primaryContent={true} className="xl:col-span-7 min-w-0">
           <Stack gap="4">
@@ -91,40 +100,56 @@ export function PerformanceView({
                 <Sliders size={18} strokeWidth={2} />
                 <h2 className="text-base font-bold">{vocab.speedStagesTitle}</h2>
               </Inline>
-              <Badge tone="brand">
-                <bdi dir="ltr" className="tabular-nums">
-                  {activeText}
-                </bdi>
-              </Badge>
-            </Inline>
-
-            <Inline gap="2" justify="between" wrap={true}>
-              <ChoiceChips
-                ariaLabel={vocab.speedStagesTitle}
-                dir="ltr"
-                size="md"
-                value={dpi.activeStage}
-                onChange={onSelectDpiStage}
-                options={dpi.stages.map(([x, y], idx) => ({
-                  value: idx + 1,
-                  label: x === y ? `${idx + 1}: ${x}` : `${idx + 1}: ${x}×${y}`,
-                }))}
-              />
 
               <Inline gap="1" wrap={false}>
                 {dpi.stages.length < dpi.maxStages ? (
-                  <Button variant="secondary" size="md" onClick={addStage}>
+                  <Button variant="secondary" size="sm" onClick={addStage}>
                     <Plus size={15} strokeWidth={2} />
                     <span>{vocab.addStage}</span>
                   </Button>
                 ) : null}
                 {dpi.stages.length > 1 ? (
-                  <Button variant="ghost" size="md" iconOnly={true} onClick={removeActiveStage} aria-label={vocab.removeStage} title={vocab.removeStage}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly={true}
+                    onClick={removeActiveStage}
+                    aria-label={vocab.removeStage}
+                    title={vocab.removeStage}
+                  >
                     <Trash2 size={15} strokeWidth={2} />
                   </Button>
                 ) : null}
               </Inline>
             </Inline>
+
+            {/* Visual Stage Curve Bars — each stage scaled dynamically across sensor range */}
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 w-full" dir="ltr">
+              {dpi.stages.map(([x, y], idx) => {
+                const isActive = idx + 1 === dpi.activeStage;
+                const barPct = stageBarPercent(x);
+                const label = x === y ? `${x}` : `${x}×${y}`;
+                return (
+                  <TileButton
+                    key={`stage-${idx + 1}`}
+                    active={isActive}
+                    align="center"
+                    onClick={() => onSelectDpiStage(idx + 1)}
+                    ariaLabel={`${vocab.speedStagesTitle} ${idx + 1}: ${label} ${vocab.speedUnit}`}
+                  >
+                    <span className="w-full h-14 rounded-[var(--radius-sm)] bg-[var(--surface-2)] flex items-end p-1 overflow-hidden">
+                      <span
+                        className={`w-full rounded-[4px] grip-transition ${
+                          isActive ? "bg-[var(--brand)]" : "bg-[var(--fg-muted)] opacity-55"
+                        }`}
+                        style={{ height: `${barPct}%` }}
+                      />
+                    </span>
+                    <span className="text-xs font-bold tabular-nums whitespace-nowrap">{label}</span>
+                  </TileButton>
+                );
+              })}
+            </div>
 
             <SurfaceInset>
               <Stack gap="4">
@@ -142,21 +167,21 @@ export function PerformanceView({
                     onCommit={(x) => updateCurrentStage(x, independentXY ? currentStage[1] : x)}
                   />
                 </Inline>
+
                 <Stack gap="1">
                   <Slider
                     ariaLabel={independentXY ? vocab.axisX : vocab.axisBoth}
                     min={capabilities.dpiMin}
                     max={capabilities.dpiMax}
                     step={capabilities.dpiStep}
-                    stops={[100, 800, 1600, 3200, 6400, 16000, 30000]}
+                    stops={ergonomicStops}
                     value={currentStage[0]}
                     onChange={(x) => updateCurrentStage(x, independentXY ? currentStage[1] : x)}
                   />
                   <div className="flex items-center justify-between text-xs text-[var(--fg-muted)] tabular-nums" dir="ltr">
-                    <span>{capabilities.dpiMin}</span>
-                    <span>1600</span>
-                    <span>6400</span>
-                    <span>{capabilities.dpiMax}</span>
+                    {tickStops.map((tick, idx) => (
+                      <span key={`${tick}-${idx}`}>{tick}</span>
+                    ))}
                   </div>
                 </Stack>
 
@@ -179,7 +204,7 @@ export function PerformanceView({
                       min={capabilities.dpiMin}
                       max={capabilities.dpiMax}
                       step={capabilities.dpiStep}
-                      stops={[100, 800, 1600, 3200, 6400, 16000, 30000]}
+                      stops={ergonomicStops}
                       value={currentStage[1]}
                       onChange={(y) => updateCurrentStage(currentStage[0], y)}
                     />
@@ -197,39 +222,20 @@ export function PerformanceView({
                     }}
                   />
                 </Inline>
-
-                <ChoiceChips
-                  ariaLabel={vocab.activeSpeedLabel}
-                  dir="ltr"
-                  size="sm"
-                  value={currentStage[0] === currentStage[1] ? currentStage[0] : null}
-                  onChange={(val) => updateCurrentStage(val, val)}
-                  options={[400, 800, 1200, 1600, 2400, 3200, 4800, 6400].map((v) => ({
-                    value: v,
-                    label: `${v}`,
-                  }))}
-                />
               </Stack>
             </SurfaceInset>
           </Stack>
         </SurfaceCard>
       ) : null}
 
-      {/* Polling Rate, Wireless Power & Conditional Scroll Wheel */}
+      {/* Polling Latency Selector, Visual Power Meter & Conditional Scroll Wheel */}
       <Stack gap="4" className="xl:col-span-5 min-w-0">
         {capabilities.pollingOptions.length > 0 && device.pollingHz !== null ? (
           <SurfaceCard>
             <Stack gap="4">
-              <Inline gap="2" justify="between" wrap={true}>
-                <Inline gap="2" wrap={false}>
-                  <Zap size={17} strokeWidth={2} />
-                  <h2 className="text-base font-bold">{vocab.pollingTitle}</h2>
-                </Inline>
-                <Badge tone="neutral">
-                  <bdi dir="ltr" className="tabular-nums">
-                    {device.pollingHz} {vocab.pollingUnit}
-                  </bdi>
-                </Badge>
+              <Inline gap="2" wrap={false}>
+                <Zap size={17} strokeWidth={2} />
+                <h2 className="text-base font-bold">{vocab.pollingTitle}</h2>
               </Inline>
 
               <SegmentedControl
@@ -241,7 +247,7 @@ export function PerformanceView({
                 onChange={(val) => onSelectPolling(Number(val))}
                 options={capabilities.pollingOptions.map((hz) => ({
                   value: String(hz),
-                  label: pollingLabel(hz),
+                  label: formatLatencyMs(hz, locale),
                 }))}
               />
             </Stack>
@@ -251,27 +257,24 @@ export function PerformanceView({
         {device.batteryPercent !== null || sleepChoices.length > 0 ? (
           <SurfaceCard>
             <Stack gap="4">
-              <Inline gap="2" justify="between" wrap={true}>
-                <Inline gap="2" wrap={false}>
-                  <Moon size={17} strokeWidth={2} />
-                  <h2 className="text-base font-bold">{vocab.powerSleepTitle}</h2>
-                </Inline>
-                {device.batteryPercent !== null ? (
-                  <Badge tone={device.batteryPercent <= 15 ? "warn" : "ok"} showDot={true}>
-                    <Inline gap="1" wrap={false}>
-                      {device.charging ? <BatteryCharging size={14} strokeWidth={2} /> : <Battery size={14} strokeWidth={2} />}
-                      <span className="tabular-nums">
-                        {vocab.battery} {device.batteryPercent}%
-                      </span>
-                    </Inline>
-                  </Badge>
-                ) : null}
+              <Inline gap="2" wrap={false}>
+                <Moon size={17} strokeWidth={2} />
+                <h2 className="text-base font-bold">{vocab.powerSleepTitle}</h2>
               </Inline>
 
               {device.batteryPercent !== null ? (
-                <div className="w-full h-2 rounded-[var(--radius-pill)] bg-[var(--border)] overflow-hidden">
+                <div
+                  role="progressbar"
+                  aria-label={vocab.battery}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={device.batteryPercent}
+                  className="w-full h-2.5 rounded-[var(--radius-pill)] bg-[var(--border)] overflow-hidden"
+                >
                   <div
-                    className={`h-full rounded-[var(--radius-pill)] ${device.batteryPercent <= 15 ? "bg-[var(--status-warn)]" : "bg-[var(--status-ok)]"}`}
+                    className={`h-full rounded-[var(--radius-pill)] ${
+                      device.batteryPercent <= 15 ? "bg-[var(--status-warn)]" : "bg-[var(--status-ok)]"
+                    }`}
                     style={{ width: `${Math.min(100, Math.max(0, device.batteryPercent))}%` }}
                   />
                 </div>

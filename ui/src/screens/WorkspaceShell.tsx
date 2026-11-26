@@ -1,4 +1,5 @@
 import {
+  ChevronDown,
   Command,
   Gamepad2,
   MousePointerClick,
@@ -18,13 +19,13 @@ import {
   Button,
   ChoiceChips,
   CommandPalette,
-  Inline,
+  Popover,
   SegmentedControl,
   Stack,
   SurfaceCard,
   type PaletteItem,
 } from "../design-system/primitives";
-import { DeviceBatteryPill, DeviceSidebarCard } from "../entities/device/DevicePresenter";
+import { DeviceIdentityBar } from "../entities/device/DevicePresenter";
 import type { Vocab } from "../i18n/vocab";
 import { ButtonsView } from "./ButtonsView";
 import { LightingView } from "./LightingView";
@@ -119,33 +120,39 @@ export function WorkspaceShell({
   const [selectedButton, setSelectedButton] = useState("grid-5");
   const [layer, setLayer] = useState<LayerName>("normal");
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const device = workspace?.activeDevice ?? null;
   const settings = workspace?.settings;
 
-  const navItems: { id: NavSection; label: string; shortLabel: string; icon: ReactNode }[] = [
-    { id: "buttons", label: vocab.navButtons, shortLabel: vocab.navButtonsShort, icon: <MousePointerClick size={16} strokeWidth={2} /> },
-    { id: "performance", label: vocab.navPerformance, shortLabel: vocab.navPerformanceShort, icon: <Sliders size={16} strokeWidth={2} /> },
-    { id: "profiles", label: vocab.navProfiles, shortLabel: vocab.navProfilesShort, icon: <Gamepad2 size={16} strokeWidth={2} /> },
+  const primaryNav: { id: NavSection; label: string; shortLabel: string; icon: ReactNode }[] = [
+    { id: "buttons", label: vocab.navButtons, shortLabel: vocab.navButtonsShort, icon: <MousePointerClick size={15} strokeWidth={2} /> },
+    { id: "performance", label: vocab.navPerformance, shortLabel: vocab.navPerformanceShort, icon: <Sliders size={15} strokeWidth={2} /> },
+    { id: "profiles", label: vocab.navProfiles, shortLabel: vocab.navProfilesShort, icon: <Gamepad2 size={15} strokeWidth={2} /> },
     ...(device?.capabilities.hasMacros
-      ? [{ id: "macros" as const, label: vocab.navMacros, shortLabel: vocab.navMacros, icon: <Sparkles size={16} strokeWidth={2} /> }]
+      ? [{ id: "macros" as const, label: vocab.navMacros, shortLabel: vocab.navMacros, icon: <Sparkles size={15} strokeWidth={2} /> }]
       : []),
     ...(device?.capabilities.hasLighting
-      ? [{ id: "lighting" as const, label: vocab.navLighting, shortLabel: vocab.navLighting, icon: <Sun size={16} strokeWidth={2} /> }]
+      ? [{ id: "lighting" as const, label: vocab.navLighting, shortLabel: vocab.navLighting, icon: <Sun size={15} strokeWidth={2} /> }]
       : []),
-    { id: "settings", label: vocab.navSettings, shortLabel: vocab.navSettingsShort, icon: <Settings size={16} strokeWidth={2} /> },
   ];
 
-  const activeNav = navItems.find((n) => n.id === section) ?? navItems[0];
-  const pageTitle = activeNav?.label ?? vocab.appName;
+  // Scope-fitted shell derived dynamically: >=5 primary modules uses sidebar, 2-4 focused studio views use top bar
+  const useSidebar = primaryNav.length >= 5;
 
   const paletteItems: PaletteItem[] = [
-    ...navItems.map((item) => ({
+    ...primaryNav.map((item) => ({
       id: `nav-${item.id}`,
       label: item.label,
       group: vocab.appName,
       onSelect: () => onSelectSection(item.id),
     })),
+    {
+      id: "nav-settings",
+      label: vocab.navSettings,
+      group: vocab.appName,
+      onSelect: () => onSelectSection("settings"),
+    },
     ...(device
       ? [
           ...device.dpi.stages.map(([x], idx) => ({
@@ -170,39 +177,21 @@ export function WorkspaceShell({
       : []),
   ];
 
-  const headerProfiles = device
-    ? device.profiles.slice(0, 3).some((p) => p.name === device.activeProfile)
-      ? device.profiles.slice(0, 3)
-      : [
-          ...device.profiles.slice(0, 2),
-          ...device.profiles.filter((p) => p.name === device.activeProfile),
-        ]
-    : [];
-
-  const sidebarContent = (
+  const sidebarContent = useSidebar ? (
     <div className="flex flex-col justify-between h-full gap-4">
       <Stack gap="4">
-        <Inline gap="2" justify="between" wrap={false}>
-          <span className="text-lg font-bold tracking-tight">{vocab.appName}</span>
-        </Inline>
-
-        {device ? <DeviceSidebarCard device={device} vocab={vocab} /> : null}
-
-        {workspace && workspace.devices.length > 1 && device ? (
-          <ChoiceChips
-            ariaLabel={vocab.deviceModelLabel}
-            size="sm"
-            value={device.deviceKey}
-            onChange={onSelectDevice}
-            options={workspace.devices.map((d) => ({
-              value: d.deviceKey,
-              label: d.name,
-            }))}
-          />
-        ) : null}
-
+        <DeviceIdentityBar
+          appName={vocab.appName}
+          device={device}
+          devices={workspace?.devices ?? []}
+          vocab={vocab}
+          onSelectDevice={onSelectDevice}
+        />
         <nav className="flex flex-col gap-1.5" aria-label={vocab.appName}>
-          {navItems.map((item) => {
+          {[
+            ...primaryNav,
+            { id: "settings" as const, label: vocab.navSettings, shortLabel: vocab.navSettingsShort, icon: <Settings size={15} strokeWidth={2} /> },
+          ].map((item) => {
             const active = section === item.id;
             return (
               <Button
@@ -214,7 +203,7 @@ export function WorkspaceShell({
                 onClick={() => onSelectSection(item.id)}
               >
                 <span className="flex items-center justify-between gap-2 w-full">
-                  <span className="flex items-center gap-2.5 min-w-0">
+                  <span className="flex items-center gap-2 min-w-0">
                     {item.icon}
                     <span className="truncate">{item.label}</span>
                   </span>
@@ -225,42 +214,74 @@ export function WorkspaceShell({
           })}
         </nav>
       </Stack>
-
-      {device?.onboard ? (
-        <div className="pt-3 border-t border-[var(--border)] flex items-center gap-2 text-xs text-[var(--fg-muted)]">
-          <span
-            className={`w-2 h-2 rounded-full shrink-0 ${device.onboard.changed ? "bg-[var(--status-warn)]" : "bg-[var(--status-ok)]"}`}
-          />
-          <span>{device.onboard.changed ? vocab.onboardPendingChanges : vocab.savedOnboardOk}</span>
-        </div>
-      ) : null}
     </div>
-  );
+  ) : undefined;
 
   const headerContent = (
     <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-      <Inline gap="2" wrap={true}>
-        <h1 className="text-base font-bold whitespace-nowrap">{pageTitle}</h1>
-        {device ? (
-          <span className="lg:hidden">
-            <DeviceBatteryPill device={device} />
-          </span>
-        ) : null}
-        {device && headerProfiles.length > 0 ? (
+      {!useSidebar ? (
+        <DeviceIdentityBar
+          appName={vocab.appName}
+          device={device}
+          devices={workspace?.devices ?? []}
+          vocab={vocab}
+          onSelectDevice={onSelectDevice}
+        />
+      ) : (
+        <span className="text-base font-bold">
+          {([...primaryNav, { id: "settings" as const, label: vocab.navSettings }].find((n) => n.id === section)?.label) ?? vocab.appName}
+        </span>
+      )}
+
+      {!useSidebar ? (
+        <nav className="hidden md:flex items-center" aria-label={vocab.appName}>
           <SegmentedControl
-            ariaLabel={vocab.profilesTitle}
+            ariaLabel={vocab.appName}
             size="sm"
-            value={device.activeProfile}
-            onChange={onSelectProfile}
-            options={headerProfiles.map((p) => ({
-              value: p.name,
-              label: p.name,
+            value={section === "settings" ? "" : section}
+            onChange={(next) => {
+              if (next) onSelectSection(next as NavSection);
+            }}
+            options={primaryNav.map((item) => ({
+              value: item.id,
+              label: item.shortLabel,
+              icon: item.icon,
             }))}
           />
-        ) : null}
-      </Inline>
+        </nav>
+      ) : null}
 
-      <Inline gap="1" wrap={false}>
+      <div className="flex items-center gap-1.5 shrink-0">
+        {device && section !== "profiles" ? (
+          <Popover
+            open={profileMenuOpen}
+            onOpenChange={setProfileMenuOpen}
+            trigger={
+              <Button variant="secondary" size="sm" aria-label={vocab.profilesTitle}>
+                <span className="truncate max-w-[100px]">{device.activeProfile}</span>
+                <ChevronDown size={14} strokeWidth={2} />
+              </Button>
+            }
+          >
+            <Stack gap="2">
+              <span className="text-xs font-semibold text-[var(--fg-muted)]">{vocab.profilesTitle}</span>
+              <ChoiceChips
+                ariaLabel={vocab.profilesTitle}
+                size="sm"
+                value={device.activeProfile}
+                onChange={(name) => {
+                  onSelectProfile(name);
+                  setProfileMenuOpen(false);
+                }}
+                options={device.profiles.map((p) => ({
+                  value: p.name,
+                  label: p.name,
+                }))}
+              />
+            </Stack>
+          </Popover>
+        ) : null}
+
         <Button
           variant="ghost"
           size="sm"
@@ -283,23 +304,45 @@ export function WorkspaceShell({
         >
           <Redo2 size={16} strokeWidth={2} />
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly={true}
-          onClick={() => setPaletteOpen(true)}
-          aria-label={vocab.quickCommands}
-          title={vocab.quickCommands}
-        >
-          <Command size={16} strokeWidth={2} />
-        </Button>
-      </Inline>
+        <span className="hidden md:inline-flex">
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly={true}
+            onClick={() => setPaletteOpen(true)}
+            aria-label={vocab.quickCommands}
+            title={vocab.quickCommands}
+          >
+            <Command size={16} strokeWidth={2} />
+          </Button>
+        </span>
+        {!useSidebar ? (
+          <span className="hidden md:inline-flex">
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly={true}
+              active={section === "settings"}
+              onClick={() => onSelectSection("settings")}
+              aria-label={vocab.navSettings}
+              title={vocab.navSettings}
+            >
+              <Settings size={16} strokeWidth={2} />
+            </Button>
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 
+  const mobileNavItems = [
+    ...primaryNav.slice(0, 3),
+    { id: "settings" as const, label: vocab.navSettings, shortLabel: vocab.navSettingsShort, icon: <Settings size={15} strokeWidth={2} /> },
+  ];
+
   const mobileNavContent = (
     <nav className="grid grid-cols-4 gap-1 w-full" aria-label={vocab.appName}>
-      {navItems.slice(0, 4).map((item) => (
+      {mobileNavItems.map((item) => (
         <Button
           key={item.id}
           variant="ghost"
@@ -316,128 +359,111 @@ export function WorkspaceShell({
     </nav>
   );
 
-  const footerContent = (
-    <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-      <span>
-        {device
-          ? device.onboard
-            ? device.onboard.changed
-              ? vocab.onboardPendingChanges
-              : vocab.savedOnboardOk
-            : vocab.connected
-          : vocab.disconnected}
-      </span>
-      <span dir="ltr">Ctrl + K</span>
-    </div>
-  );
-
   return (
-    <AppShell sidebar={sidebarContent} header={headerContent} mobileNav={mobileNavContent} footer={footerContent}>
-      <Stack gap="4">
-        {errorMsg ? (
-          <SurfaceCard>
-            <Badge tone="danger" showDot={true}>
-              {errorMsg}
-            </Badge>
-          </SurfaceCard>
-        ) : null}
+    <AppShell sidebar={sidebarContent} header={headerContent} mobileNav={mobileNavContent}>
+      {errorMsg ? (
+        <SurfaceCard>
+          <Badge tone="danger" showDot={true}>
+            {errorMsg}
+          </Badge>
+        </SurfaceCard>
+      ) : null}
 
-        {!device && section !== "settings" ? (
-          <SurfaceCard primaryContent={true}>
-            <Stack gap="4" className="items-start">
-              <h2 className="text-lg font-bold">{vocab.noDevicesTitle}</h2>
-              <p className="text-sm text-[var(--fg-muted)]">{vocab.noDevicesBody}</p>
-              <Button variant="primary" size="md" onClick={onRescan}>
-                <RefreshCw size={16} strokeWidth={2} />
-                <span>{vocab.rescan}</span>
-              </Button>
-            </Stack>
-          </SurfaceCard>
-        ) : null}
+      {!device && section !== "settings" ? (
+        <SurfaceCard primaryContent={true}>
+          <Stack gap="4" className="items-start">
+            <h1 className="text-lg font-bold">{vocab.noDevicesTitle}</h1>
+            <p className="text-sm text-[var(--fg-muted)]">{vocab.noDevicesBody}</p>
+            <Button variant="primary" size="md" onClick={onRescan}>
+              <RefreshCw size={16} strokeWidth={2} />
+              <span>{vocab.rescan}</span>
+            </Button>
+          </Stack>
+        </SurfaceCard>
+      ) : null}
 
-        {device && section === "buttons" && settings ? (
-          <ButtonsView
-            device={device}
-            selectedButton={selectedButton}
-            layer={layer}
-            locale={settings.locale}
-            vocab={vocab}
-            onSelectButton={setSelectedButton}
-            onChangeLayer={setLayer}
-            onSetButton={onSetButton}
-            onResetButton={onResetButton}
-            onRestoreAll={onRestoreAll}
-            onSaveOnboard={onSaveOnboard}
-            onPutBackOnboard={onPutBackOnboard}
-          />
-        ) : null}
+      {device && section === "buttons" && settings ? (
+        <ButtonsView
+          device={device}
+          selectedButton={selectedButton}
+          layer={layer}
+          locale={settings.locale}
+          vocab={vocab}
+          onSelectButton={setSelectedButton}
+          onChangeLayer={setLayer}
+          onSetButton={onSetButton}
+          onResetButton={onResetButton}
+          onRestoreAll={onRestoreAll}
+          onSaveOnboard={onSaveOnboard}
+          onPutBackOnboard={onPutBackOnboard}
+        />
+      ) : null}
 
-        {device && section === "performance" && settings ? (
-          <PerformanceView
-            device={device}
-            locale={settings.locale}
-            vocab={vocab}
-            onSelectDpiStage={onSelectDpiStage}
-            onCommitDpiStages={onCommitDpiStages}
-            onSelectPolling={onSelectPolling}
-            onSetSleep={onSetSleep}
-            onSetScroll={onSetScroll}
-          />
-        ) : null}
+      {device && section === "performance" && settings ? (
+        <PerformanceView
+          device={device}
+          locale={settings.locale}
+          vocab={vocab}
+          onSelectDpiStage={onSelectDpiStage}
+          onCommitDpiStages={onCommitDpiStages}
+          onSelectPolling={onSelectPolling}
+          onSetSleep={onSetSleep}
+          onSetScroll={onSetScroll}
+        />
+      ) : null}
 
-        {device && section === "profiles" && workspace && settings ? (
-          <ProfilesView
-            device={device}
-            runningApps={workspace.runningApps}
-            locale={settings.locale}
-            vocab={vocab}
-            onSelectProfile={onSelectProfile}
-            onCreateProfile={onCreateProfile}
-            onRenameProfile={onRenameProfile}
-            onDeleteProfile={onDeleteProfile}
-            onSetProfileApps={onSetProfileApps}
-            onExportProfiles={onExportProfiles}
-            onImportProfiles={onImportProfiles}
-          />
-        ) : null}
+      {device && section === "profiles" && workspace && settings ? (
+        <ProfilesView
+          device={device}
+          runningApps={workspace.runningApps}
+          locale={settings.locale}
+          vocab={vocab}
+          onSelectProfile={onSelectProfile}
+          onCreateProfile={onCreateProfile}
+          onRenameProfile={onRenameProfile}
+          onDeleteProfile={onDeleteProfile}
+          onSetProfileApps={onSetProfileApps}
+          onExportProfiles={onExportProfiles}
+          onImportProfiles={onImportProfiles}
+        />
+      ) : null}
 
-        {device && section === "macros" && device.capabilities.hasMacros ? (
-          <MacrosView
-            device={device}
-            vocab={vocab}
-            onCreateMacro={onCreateMacro}
-            onDeleteMacro={onDeleteMacro}
-          />
-        ) : null}
+      {device && section === "macros" && device.capabilities.hasMacros ? (
+        <MacrosView
+          device={device}
+          vocab={vocab}
+          onCreateMacro={onCreateMacro}
+          onDeleteMacro={onDeleteMacro}
+        />
+      ) : null}
 
-        {device && section === "lighting" && device.capabilities.hasLighting && settings ? (
-          <LightingView
-            device={device}
-            locale={settings.locale}
-            vocab={vocab}
-            onSetLightingControl={onSetLightingControl}
-            onSetColor={onSetLightingColor}
-            onSetBrightness={onSetLightingBrightness}
-            onSetEffect={onSetLightingEffect}
-            onSetOff={onSetLightingOff}
-            onSyncAll={onSyncLighting}
-          />
-        ) : null}
+      {device && section === "lighting" && device.capabilities.hasLighting && settings ? (
+        <LightingView
+          device={device}
+          locale={settings.locale}
+          vocab={vocab}
+          onSetLightingControl={onSetLightingControl}
+          onSetColor={onSetLightingColor}
+          onSetBrightness={onSetLightingBrightness}
+          onSetEffect={onSetLightingEffect}
+          onSetOff={onSetLightingOff}
+          onSyncAll={onSyncLighting}
+        />
+      ) : null}
 
-        {section === "settings" && settings ? (
-          <SettingsView
-            settings={settings}
-            device={device}
-            synapseRunning={workspace?.synapseRunning ?? []}
-            firmwareResult={firmwareResult}
-            vocab={vocab}
-            onUpdateSettings={onUpdateSettings}
-            onCheckFirmware={onCheckFirmware}
-            onCopyReport={onCopyReport}
-            onOpenFolder={onOpenFolder}
-          />
-        ) : null}
-      </Stack>
+      {section === "settings" && settings ? (
+        <SettingsView
+          settings={settings}
+          device={device}
+          synapseRunning={workspace?.synapseRunning ?? []}
+          firmwareResult={firmwareResult}
+          vocab={vocab}
+          onUpdateSettings={onUpdateSettings}
+          onCheckFirmware={onCheckFirmware}
+          onCopyReport={onCopyReport}
+          onOpenFolder={onOpenFolder}
+        />
+      ) : null}
 
       <CommandPalette
         open={paletteOpen}

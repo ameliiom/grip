@@ -1,4 +1,4 @@
-import { Keyboard, Lock, RotateCcw, Zap } from "lucide-react";
+import { Ban, Gauge, Keyboard, Lock, MousePointerClick, RotateCcw, Sparkles, Volume2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ButtonEntry, LayerName, MacroSummary } from "../../acl/transport";
 import {
@@ -10,23 +10,17 @@ import {
   Stack,
   SurfaceInset,
 } from "../../design-system/primitives";
-import { BUTTON_LABELS, formatHumanAction, parseAction, type Locale, type Vocab } from "../../i18n/vocab";
+import { BUTTON_LABELS, computeErgonomicStops, formatHumanAction, parseAction, type Locale, type Vocab } from "../../i18n/vocab";
 
 type ActionCategory = "keys" | "mouse" | "turbo" | "speed" | "media" | "macros" | "disabled";
 
 const KEY_PRESETS: readonly string[] = [
-  "key:q",
-  "key:e",
-  "key:r",
   "key:space",
-  "key:tab",
   "key:enter",
+  "key:esc",
   "key:ctrl+c",
   "key:ctrl+v",
   "key:win+h",
-  "key:f13",
-  "key:f14",
-  "key:esc",
 ];
 
 const MOUSE_PRESETS: readonly string[] = [
@@ -212,13 +206,15 @@ export function ActionInspector({
   }, [recording, onAssign]);
 
   const categories = [
-    { value: "keys" as const, label: vocab.categories.keys },
-    { value: "mouse" as const, label: vocab.categories.mouse },
-    { value: "turbo" as const, label: vocab.categories.turbo },
-    { value: "speed" as const, label: vocab.categories.speed },
-    { value: "media" as const, label: vocab.categories.media },
-    ...(hasMacros ? [{ value: "macros" as const, label: vocab.categories.macros }] : []),
-    { value: "disabled" as const, label: vocab.categories.disabled },
+    { value: "keys" as const, label: vocab.categories.keys, icon: <Keyboard size={14} strokeWidth={2} /> },
+    { value: "mouse" as const, label: vocab.categories.mouse, icon: <MousePointerClick size={14} strokeWidth={2} /> },
+    { value: "turbo" as const, label: vocab.categories.turbo, icon: <Zap size={14} strokeWidth={2} /> },
+    { value: "speed" as const, label: vocab.categories.speed, icon: <Gauge size={14} strokeWidth={2} /> },
+    { value: "media" as const, label: vocab.categories.media, icon: <Volume2 size={14} strokeWidth={2} /> },
+    ...(hasMacros
+      ? [{ value: "macros" as const, label: vocab.categories.macros, icon: <Sparkles size={14} strokeWidth={2} /> }]
+      : []),
+    { value: "disabled" as const, label: vocab.categories.disabled, icon: <Ban size={14} strokeWidth={2} /> },
   ];
 
   const renderPresets = (list: readonly string[]) => (
@@ -242,12 +238,12 @@ export function ActionInspector({
       <Stack gap="4">
         <Inline gap="2" justify="between" wrap={true}>
           <Stack gap="1">
-            <Inline gap="2" wrap={true}>
-              <span className="text-xs text-[var(--fg-muted)]">
-                {layer === "normal" ? vocab.layerPrimary : vocab.layerSecondary}
-              </span>
-              {modified ? <Badge tone="brand">{vocab.modifiedBadge}</Badge> : null}
-            </Inline>
+            {layer === "hypershift" || modified ? (
+              <Inline gap="2" wrap={true}>
+                {layer === "hypershift" ? <Badge tone="active">{vocab.layerSecondary}</Badge> : null}
+                {modified ? <Badge tone="brand">{vocab.modifiedBadge}</Badge> : null}
+              </Inline>
+            ) : null}
             <h2 className="text-base font-bold">{buttonName}</h2>
           </Stack>
           {isLocked ? (
@@ -382,6 +378,7 @@ export function ActionInspector({
                       min={dpiMin}
                       max={dpiMax}
                       step={dpiStep}
+                      stops={computeErgonomicStops(dpiMin, dpiMax, dpiStep)}
                       value={clutchDpi}
                       onChange={setClutchDpi}
                     />

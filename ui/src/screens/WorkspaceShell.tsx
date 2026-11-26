@@ -19,11 +19,12 @@ import {
   ChoiceChips,
   CommandPalette,
   Inline,
+  SegmentedControl,
   Stack,
   SurfaceCard,
   type PaletteItem,
 } from "../design-system/primitives";
-import { DeviceSidebarCard, DeviceStatusChip } from "../entities/device/DevicePresenter";
+import { DeviceBatteryPill, DeviceSidebarCard } from "../entities/device/DevicePresenter";
 import type { Vocab } from "../i18n/vocab";
 import { ButtonsView } from "./ButtonsView";
 import { LightingView } from "./LightingView";
@@ -169,14 +170,20 @@ export function WorkspaceShell({
       : []),
   ];
 
+  const headerProfiles = device
+    ? device.profiles.slice(0, 3).some((p) => p.name === device.activeProfile)
+      ? device.profiles.slice(0, 3)
+      : [
+          ...device.profiles.slice(0, 2),
+          ...device.profiles.filter((p) => p.name === device.activeProfile),
+        ]
+    : [];
+
   const sidebarContent = (
     <div className="flex flex-col justify-between h-full gap-4">
       <Stack gap="4">
         <Inline gap="2" justify="between" wrap={false}>
           <span className="text-lg font-bold tracking-tight">{vocab.appName}</span>
-          <Badge tone={device ? "ok" : "neutral"} showDot={true}>
-            {device ? vocab.connected : vocab.disconnected}
-          </Badge>
         </Inline>
 
         {device ? <DeviceSidebarCard device={device} vocab={vocab} /> : null}
@@ -195,28 +202,37 @@ export function WorkspaceShell({
         ) : null}
 
         <nav className="flex flex-col gap-1.5" aria-label={vocab.appName}>
-          {navItems.map((item) => (
-            <Button
-              key={item.id}
-              variant="ghost"
-              size="md"
-              fullWidth={true}
-              active={section === item.id}
-              onClick={() => onSelectSection(item.id)}
-            >
-              <span className="flex items-center gap-2.5 w-full">
-                {item.icon}
-                <span>{item.label}</span>
-              </span>
-            </Button>
-          ))}
+          {navItems.map((item) => {
+            const active = section === item.id;
+            return (
+              <Button
+                key={item.id}
+                variant="ghost"
+                size="md"
+                fullWidth={true}
+                active={active}
+                onClick={() => onSelectSection(item.id)}
+              >
+                <span className="flex items-center justify-between gap-2 w-full">
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    {item.icon}
+                    <span className="truncate">{item.label}</span>
+                  </span>
+                  {active ? <span className="w-1 h-5 rounded-full bg-[var(--brand)] shrink-0" /> : null}
+                </span>
+              </Button>
+            );
+          })}
         </nav>
       </Stack>
 
-      {device ? (
-        <Button variant="secondary" size="md" fullWidth={true} onClick={onSaveOnboard}>
-          {vocab.saveToMouse}
-        </Button>
+      {device?.onboard ? (
+        <div className="pt-3 border-t border-[var(--border)] flex items-center gap-2 text-xs text-[var(--fg-muted)]">
+          <span
+            className={`w-2 h-2 rounded-full shrink-0 ${device.onboard.changed ? "bg-[var(--status-warn)]" : "bg-[var(--status-ok)]"}`}
+          />
+          <span>{device.onboard.changed ? vocab.onboardPendingChanges : vocab.savedOnboardOk}</span>
+        </div>
       ) : null}
     </div>
   );
@@ -224,15 +240,19 @@ export function WorkspaceShell({
   const headerContent = (
     <div className="flex flex-wrap items-center justify-between gap-2 w-full">
       <Inline gap="2" wrap={true}>
-        <h1 className="text-base font-bold">{pageTitle}</h1>
-        {device ? <DeviceStatusChip device={device} vocab={vocab} /> : null}
+        <h1 className="text-base font-bold whitespace-nowrap">{pageTitle}</h1>
         {device ? (
-          <ChoiceChips
+          <span className="lg:hidden">
+            <DeviceBatteryPill device={device} />
+          </span>
+        ) : null}
+        {device && headerProfiles.length > 0 ? (
+          <SegmentedControl
             ariaLabel={vocab.profilesTitle}
             size="sm"
             value={device.activeProfile}
             onChange={onSelectProfile}
-            options={device.profiles.slice(0, 4).map((p) => ({
+            options={headerProfiles.map((p) => ({
               value: p.name,
               label: p.name,
             }))}
@@ -240,18 +260,38 @@ export function WorkspaceShell({
         ) : null}
       </Inline>
 
-      <Inline gap="2" wrap={true}>
-        <Button variant="secondary" size="sm" disabled={!device?.canUndo} onClick={onUndo} aria-label={vocab.undo}>
-          <Undo2 size={15} strokeWidth={2} />
-          <span>{vocab.undo}</span>
+      <Inline gap="1" wrap={false}>
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly={true}
+          disabled={!device?.canUndo}
+          onClick={onUndo}
+          aria-label={vocab.undo}
+          title={vocab.undo}
+        >
+          <Undo2 size={16} strokeWidth={2} />
         </Button>
-        <Button variant="secondary" size="sm" disabled={!device?.canRedo} onClick={onRedo} aria-label={vocab.redo}>
-          <Redo2 size={15} strokeWidth={2} />
-          <span>{vocab.redo}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly={true}
+          disabled={!device?.canRedo}
+          onClick={onRedo}
+          aria-label={vocab.redo}
+          title={vocab.redo}
+        >
+          <Redo2 size={16} strokeWidth={2} />
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => setPaletteOpen(true)} aria-label={vocab.quickCommands}>
-          <Command size={15} strokeWidth={2} />
-          <span>{vocab.quickCommands}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly={true}
+          onClick={() => setPaletteOpen(true)}
+          aria-label={vocab.quickCommands}
+          title={vocab.quickCommands}
+        >
+          <Command size={16} strokeWidth={2} />
         </Button>
       </Inline>
     </div>
@@ -278,8 +318,16 @@ export function WorkspaceShell({
 
   const footerContent = (
     <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-      <span>{vocab.appName}</span>
-      <span>{device ? device.name : vocab.disconnected}</span>
+      <span>
+        {device
+          ? device.onboard
+            ? device.onboard.changed
+              ? vocab.onboardPendingChanges
+              : vocab.savedOnboardOk
+            : vocab.connected
+          : vocab.disconnected}
+      </span>
+      <span dir="ltr">Ctrl + K</span>
     </div>
   );
 
@@ -337,10 +385,11 @@ export function WorkspaceShell({
           />
         ) : null}
 
-        {device && section === "profiles" && workspace ? (
+        {device && section === "profiles" && workspace && settings ? (
           <ProfilesView
             device={device}
             runningApps={workspace.runningApps}
+            locale={settings.locale}
             vocab={vocab}
             onSelectProfile={onSelectProfile}
             onCreateProfile={onCreateProfile}

@@ -89,7 +89,20 @@ export default async function audit(b) {
         issues.push('missing-app-shell-landmarks');
       }
 
-      // Competing Primary CTAs visible in viewport simultaneously
+      // Competing Primary CTAs & brand-color overload check (strictly <= 2 brand-filled controls/badges)
+      const brandProbe = document.createElement('span');
+      brandProbe.style.cssText = 'position:fixed;left:-9999px;background-color:var(--brand)';
+      document.body.appendChild(brandProbe);
+      const brandRgb = getComputedStyle(brandProbe).backgroundColor;
+      brandProbe.remove();
+      const brandFills = [...document.querySelectorAll('button, a[href], [role="button"], [role="switch"], [data-badge]')].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && getComputedStyle(el).backgroundColor === brandRgb;
+      });
+      if (brandFills.length > 2) {
+        issues.push('brand-overload:' + brandFills.length);
+      }
+
       const primaryCtas = [...document.querySelectorAll('[data-variant="primary"]')].filter((el) => {
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight;

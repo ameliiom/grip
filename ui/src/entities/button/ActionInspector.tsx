@@ -19,6 +19,8 @@ const KEY_PRESETS: readonly string[] = [
   "key:e",
   "key:r",
   "key:space",
+  "key:tab",
+  "key:enter",
   "key:ctrl+c",
   "key:ctrl+v",
   "key:win+h",
@@ -225,12 +227,15 @@ export function ActionInspector({
       value={currentAction}
       onChange={onAssign}
       size="sm"
+      columns={3}
       options={list.map((action) => ({
         value: action,
         label: formatHumanAction(action, locale, macros),
       }))}
     />
   );
+
+  const keyTokens = parsed.kind === "key" ? formatHumanAction(currentAction, locale, macros).split(" + ") : null;
 
   return (
     <Stack gap="4" className="h-full justify-between">
@@ -252,6 +257,17 @@ export function ActionInspector({
                 <span>{vocab.protectedTitle}</span>
               </Inline>
             </Badge>
+          ) : keyTokens ? (
+            <div className="flex flex-wrap items-center gap-1" dir="ltr">
+              {keyTokens.map((tok, i) => (
+                <kbd
+                  key={`${tok}-${i}`}
+                  className="inline-flex items-center justify-center min-w-[26px] h-7 px-2 rounded-[var(--radius-sm)] bg-[var(--surface-2)] border border-[var(--border)] text-xs font-bold text-[var(--fg)]"
+                >
+                  {tok}
+                </kbd>
+              ))}
+            </div>
           ) : (
             <Badge tone="active">{formatHumanAction(currentAction, locale, macros)}</Badge>
           )}
@@ -266,6 +282,7 @@ export function ActionInspector({
             <ChoiceChips
               ariaLabel={buttonName}
               value={category}
+              columns={3}
               onChange={(next) => {
                 setRecording(false);
                 setCategory(next);
@@ -278,13 +295,19 @@ export function ActionInspector({
               <Stack gap="4">
                 <Stack gap="2">
                   <span className="text-xs text-[var(--fg-muted)]">{vocab.keyCaptureHint}</span>
-                  <Inline gap="2" wrap={true}>
-                    <Button variant="secondary" active={recording} onClick={() => setRecording((r) => !r)}>
+                  <Inline gap="2" wrap={false}>
+                    <Button
+                      variant="secondary"
+                      dashed={!recording}
+                      fullWidth={true}
+                      active={recording}
+                      onClick={() => setRecording((r) => !r)}
+                    >
                       <Keyboard size={16} strokeWidth={2} />
                       <span>{recording ? vocab.recordingKey : vocab.pressAnyKey}</span>
                     </Button>
                     {recording ? (
-                      <Button variant="ghost" size="sm" onClick={() => setRecording(false)}>
+                      <Button variant="ghost" size="md" onClick={() => setRecording(false)}>
                         {vocab.cancel}
                       </Button>
                     ) : null}

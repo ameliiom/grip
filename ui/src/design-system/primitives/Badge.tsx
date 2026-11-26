@@ -26,7 +26,7 @@ export function Badge({
       data-badge="true"
       className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-medium tabular-nums ${
         isBrand
-          ? "bg-[var(--brand)] text-[var(--brand-fg)] font-semibold"
+          ? "bg-[var(--surface-2)] text-[var(--brand-ink)] border border-[var(--border)] font-semibold"
           : "bg-[var(--surface-2)] text-[var(--fg)]"
       }`}
     >

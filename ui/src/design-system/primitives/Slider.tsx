@@ -9,6 +9,7 @@ export function Slider({
   ariaLabel,
   disabled = false,
   dir = "ltr",
+  stops,
 }: {
   value: number;
   min: number;
@@ -18,11 +19,30 @@ export function Slider({
   ariaLabel: string;
   disabled?: boolean;
   dir?: "ltr" | "rtl";
+  stops?: readonly number[];
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const clamped = Math.min(max, Math.max(min, value));
   const span = Math.max(1, max - min);
-  const pct = ((clamped - min) / span) * 100;
+
+  const effectiveStops =
+    stops && stops.length >= 2
+      ? [min, ...stops.filter((s) => s > min && s < max), max]
+      : null;
+
+  const pct = (() => {
+    if (!effectiveStops) return ((clamped - min) / span) * 100;
+    const segs = effectiveStops.length - 1;
+    for (let i = 0; i < segs; i++) {
+      const a = effectiveStops[i]!;
+      const b = effectiveStops[i + 1]!;
+      if (clamped <= b) {
+        const local = b > a ? (clamped - a) / (b - a) : 0;
+        return ((i + local) / segs) * 100;
+      }
+    }
+    return 100;
+  })();
 
   const snapValue = useCallback(
     (raw: number) => {
@@ -41,9 +61,19 @@ export function Slider({
       let ratio = (clientX - rect.left) / rect.width;
       if (dir === "rtl") ratio = 1 - ratio;
       ratio = Math.min(1, Math.max(0, ratio));
-      onChange(snapValue(min + ratio * span));
+      if (!effectiveStops) {
+        onChange(snapValue(min + ratio * span));
+        return;
+      }
+      const segs = effectiveStops.length - 1;
+      const scaled = ratio * segs;
+      const idx = Math.min(segs - 1, Math.floor(scaled));
+      const local = scaled - idx;
+      const a = effectiveStops[idx]!;
+      const b = effectiveStops[idx + 1]!;
+      onChange(snapValue(a + local * (b - a)));
     },
-    [disabled, dir, min, onChange, snapValue, span],
+    [disabled, dir, effectiveStops, min, onChange, snapValue, span],
   );
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -89,7 +119,7 @@ export function Slider({
         disabled ? "opacity-45 cursor-not-allowed" : ""
       }`}
     >
-      <div className="w-full h-2 rounded-[var(--radius-pill)] bg-[var(--surface-2)] overflow-hidden relative">
+      <div className="w-full h-2 rounded-[var(--radius-pill)] bg-[var(--border)] overflow-hidden relative">
         <div
           className="h-full bg-[var(--brand)] rounded-[var(--radius-pill)]"
           style={{ width: `${pct}%` }}

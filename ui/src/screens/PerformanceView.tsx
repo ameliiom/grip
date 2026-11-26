@@ -111,15 +111,15 @@ export function PerformanceView({
                 }))}
               />
 
-              <Inline gap="2" wrap={false}>
+              <Inline gap="1" wrap={false}>
                 {dpi.stages.length < dpi.maxStages ? (
-                  <Button variant="secondary" size="sm" onClick={addStage}>
+                  <Button variant="secondary" size="md" onClick={addStage}>
                     <Plus size={15} strokeWidth={2} />
                     <span>{vocab.addStage}</span>
                   </Button>
                 ) : null}
                 {dpi.stages.length > 1 ? (
-                  <Button variant="ghost" size="sm" onClick={removeActiveStage} aria-label={vocab.removeStage}>
+                  <Button variant="ghost" size="md" iconOnly={true} onClick={removeActiveStage} aria-label={vocab.removeStage} title={vocab.removeStage}>
                     <Trash2 size={15} strokeWidth={2} />
                   </Button>
                 ) : null}
@@ -142,14 +142,23 @@ export function PerformanceView({
                     onCommit={(x) => updateCurrentStage(x, independentXY ? currentStage[1] : x)}
                   />
                 </Inline>
-                <Slider
-                  ariaLabel={independentXY ? vocab.axisX : vocab.axisBoth}
-                  min={capabilities.dpiMin}
-                  max={capabilities.dpiMax}
-                  step={capabilities.dpiStep}
-                  value={currentStage[0]}
-                  onChange={(x) => updateCurrentStage(x, independentXY ? currentStage[1] : x)}
-                />
+                <Stack gap="1">
+                  <Slider
+                    ariaLabel={independentXY ? vocab.axisX : vocab.axisBoth}
+                    min={capabilities.dpiMin}
+                    max={capabilities.dpiMax}
+                    step={capabilities.dpiStep}
+                    stops={[100, 800, 1600, 3200, 6400, 16000, 30000]}
+                    value={currentStage[0]}
+                    onChange={(x) => updateCurrentStage(x, independentXY ? currentStage[1] : x)}
+                  />
+                  <div className="flex items-center justify-between text-xs text-[var(--fg-muted)] tabular-nums" dir="ltr">
+                    <span>{capabilities.dpiMin}</span>
+                    <span>1600</span>
+                    <span>6400</span>
+                    <span>{capabilities.dpiMax}</span>
+                  </div>
+                </Stack>
 
                 {independentXY ? (
                   <Stack gap="4">
@@ -170,6 +179,7 @@ export function PerformanceView({
                       min={capabilities.dpiMin}
                       max={capabilities.dpiMax}
                       step={capabilities.dpiStep}
+                      stops={[100, 800, 1600, 3200, 6400, 16000, 30000]}
                       value={currentStage[1]}
                       onChange={(y) => updateCurrentStage(currentStage[0], y)}
                     />
@@ -226,6 +236,7 @@ export function PerformanceView({
                 ariaLabel={vocab.pollingTitle}
                 dir="ltr"
                 size="md"
+                fullWidth={true}
                 value={String(device.pollingHz)}
                 onChange={(val) => onSelectPolling(Number(val))}
                 options={capabilities.pollingOptions.map((hz) => ({
@@ -256,6 +267,15 @@ export function PerformanceView({
                   </Badge>
                 ) : null}
               </Inline>
+
+              {device.batteryPercent !== null ? (
+                <div className="w-full h-2 rounded-[var(--radius-pill)] bg-[var(--border)] overflow-hidden">
+                  <div
+                    className={`h-full rounded-[var(--radius-pill)] ${device.batteryPercent <= 15 ? "bg-[var(--status-warn)]" : "bg-[var(--status-ok)]"}`}
+                    style={{ width: `${Math.min(100, Math.max(0, device.batteryPercent))}%` }}
+                  />
+                </div>
+              ) : null}
 
               {sleepChoices.length > 0 && device.sleepMinutes !== null ? (
                 <Stack gap="2">

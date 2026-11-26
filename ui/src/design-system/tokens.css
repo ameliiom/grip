@@ -29,6 +29,11 @@
   --status-danger: #b91c1c;
   --status-active: #1d4ed8;
   --status-neutral: #52525b;
+  --hw-canvas: #f1f2f4;
+  --hw-shell: #ffffff;
+  --hw-shell-alt: #e4e6eb;
+  --hw-stroke: #a1a1aa;
+  --hw-line: #9ca3af;
 }
 
 :root[data-theme="dark"] {
@@ -46,6 +51,11 @@
   --status-danger: #f87171;
   --status-active: #60a5fa;
   --status-neutral: #a1a1aa;
+  --hw-canvas: #0c0c0f;
+  --hw-shell: #18181d;
+  --hw-shell-alt: #24242b;
+  --hw-stroke: #52525b;
+  --hw-line: #52525b;
 }
 
 @media (max-width: 480px) {

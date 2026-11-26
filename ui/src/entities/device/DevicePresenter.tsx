@@ -3,28 +3,15 @@ import type { DeviceSnapshot, DeviceSummary } from "../../acl/transport";
 import { Badge, Inline } from "../../design-system/primitives";
 import type { Vocab } from "../../i18n/vocab";
 
-export function DeviceStatusChip({
-  device,
-  vocab,
-}: {
-  device: DeviceSummary | DeviceSnapshot;
-  vocab: Vocab;
-}) {
+export function DeviceBatteryPill({ device }: { device: DeviceSummary | DeviceSnapshot }) {
+  if (device.batteryPercent === null) return null;
   return (
-    <Inline gap="2" wrap={true}>
-      <Badge tone="ok" showDot={true}>
-        {device.name}
-      </Badge>
-      {device.batteryPercent !== null ? (
-        <Badge tone={device.batteryPercent <= 15 ? "warn" : "neutral"}>
-          <Inline gap="1" wrap={false}>
-            {device.charging ? <BatteryCharging size={14} strokeWidth={2} /> : <Battery size={14} strokeWidth={2} />}
-            <span className="tabular-nums">{device.batteryPercent}%</span>
-          </Inline>
-        </Badge>
-      ) : null}
-      <Badge tone="ok">{vocab.connected}</Badge>
-    </Inline>
+    <Badge tone={device.batteryPercent <= 15 ? "warn" : "ok"} showDot={true}>
+      <Inline gap="1" wrap={false}>
+        {device.charging ? <BatteryCharging size={13} strokeWidth={2} /> : <Battery size={13} strokeWidth={2} />}
+        <span className="tabular-nums">{device.batteryPercent}%</span>
+      </Inline>
+    </Badge>
   );
 }
 
@@ -40,19 +27,22 @@ export function DeviceSidebarCard({
   const activeDpi = activeStage[0] === activeStage[1] ? `${activeStage[0]}` : `${activeStage[0]}×${activeStage[1]}`;
 
   return (
-    <div className="rounded-[var(--radius-md)] bg-[var(--surface-2)] p-3 flex flex-col gap-2">
-      <div className="flex items-center gap-2.5">
-        <span className="inline-flex items-center justify-center w-9 h-9 rounded-[var(--radius-md)] bg-[var(--brand)] text-[var(--brand-fg)] shrink-0">
-          <Mouse size={19} strokeWidth={2} />
+    <div className="rounded-[var(--radius-md)] bg-[var(--surface-0)] border border-[var(--border)] p-3 flex flex-col gap-2.5">
+      <div className="flex items-start gap-2.5">
+        <span className="inline-flex items-center justify-center w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-2)] text-[var(--fg)] shrink-0">
+          <Mouse size={18} strokeWidth={2} />
         </span>
-        <div className="flex flex-col min-w-0">
-          <span className="text-sm font-bold leading-snug break-words">{device.name}</span>
-          <span className="text-xs text-[var(--fg-muted)]">{vocab.connected}</span>
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-[var(--status-ok)] shrink-0" />
+            <span className="text-sm font-bold leading-snug break-words">{device.name}</span>
+          </div>
+          <span className="text-xs text-[var(--fg-muted)]">{device.activeProfile}</span>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--fg-muted)] pt-1 border-t border-[var(--border)]">
-        <bdi dir="ltr" className="tabular-nums font-medium text-[var(--fg)]">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--fg-muted)] pt-2 border-t border-[var(--border)]">
+        <bdi dir="ltr" className="tabular-nums font-semibold text-[var(--fg)]">
           {activeDpi} {vocab.speedUnit}
         </bdi>
         {device.pollingHz ? (

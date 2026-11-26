@@ -66,7 +66,7 @@ export function parseAction(raw: string): ParsedAction {
   return { kind: "unknown", raw: s };
 }
 
-function formatKeyCombo(combo: string, compact = false): string {
+function formatKeyCombo(combo: string, compact = false, locale: Locale = "ar"): string {
   const parts = combo.split("+").filter(Boolean);
   const nice = parts.map((p) => {
     const lower = p.toLowerCase();
@@ -89,8 +89,8 @@ function formatKeyCombo(combo: string, compact = false): string {
     return lower.length === 1 ? lower.toUpperCase() : (lower[0] ?? "").toUpperCase() + lower.slice(1);
   });
   if (compact && nice.length >= 4) {
-    const mods = nice.slice(0, -1).map((m) => m[0]);
-    return `${mods.join("+")}+${nice[nice.length - 1]}`;
+    const last = nice[nice.length - 1] ?? "";
+    return locale === "ar" ? `اختصار ${last}` : `Combo ${last}`;
   }
   return nice.join(" + ");
 }
@@ -191,7 +191,7 @@ export function formatHumanAction(
     case "media":
       return formatMediaAction(parsed.value, locale);
     case "key":
-      return formatKeyCombo(parsed.combo, compact);
+      return formatKeyCombo(parsed.combo, compact, locale);
     case "turbo": {
       const inner = formatHumanAction(parsed.target, locale, macros, true);
       return locale === "ar"
@@ -213,6 +213,14 @@ export function formatHumanAction(
     case "unknown":
       return locale === "ar" ? "أمر مخصص" : "Custom action";
   }
+}
+
+export function formatLinkedAppsCount(count: number, locale: Locale): string {
+  if (count <= 0) return locale === "ar" ? "عام بدون ربط" : "Global";
+  if (count === 1) return locale === "ar" ? "برنامج واحد" : "1 app";
+  if (count === 2) return locale === "ar" ? "برنامجان" : "2 apps";
+  if (count <= 10) return locale === "ar" ? `${count} برامج` : `${count} apps`;
+  return locale === "ar" ? `${count} برنامجاً` : `${count} apps`;
 }
 
 export function formatMinutesLabel(minutes: number, locale: Locale): string {
@@ -467,7 +475,7 @@ export const VOCAB: Record<Locale, Vocab> = {
     layerSecondary: "الوضع الإضافي",
     layerSecondaryHeldBy: "يتفعّل بالضغط المطوّل على",
     viewSide: "الجانب (12 زر)",
-    viewTop: "الأعلى",
+    viewTop: "الأعلى (9 أزرار)",
     viewBoth: "كلا المنظورين",
     topBodyLabel: "الأزرار العلوية والعجلة",
     sideBodyLabel: "الأزرار الجانبية للإبهام",
@@ -605,7 +613,7 @@ export const VOCAB: Record<Locale, Vocab> = {
     layerSecondary: "Secondary layer",
     layerSecondaryHeldBy: "Activated while holding",
     viewSide: "Side (12)",
-    viewTop: "Top",
+    viewTop: "Top (9)",
     viewBoth: "Dual view",
     topBodyLabel: "Top buttons & scroll wheel",
     sideBodyLabel: "Side thumb keypad",

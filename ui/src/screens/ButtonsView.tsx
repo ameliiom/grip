@@ -40,7 +40,7 @@ export function ButtonsView({
   onSaveOnboard: () => void;
   onPutBackOnboard: () => void;
 }) {
-  const [view, setView] = useState<BlueprintView>("both");
+  const [view, setView] = useState<BlueprintView>(device.capabilities.hasSideGrid12 ? "side" : "top");
 
   const fallbackEntry = device.buttons.find((b) => b.id === "grid-5") ?? device.buttons[0];
   const activeEntry = device.buttons.find((b) => b.id === selectedButton) ?? fallbackEntry;
@@ -52,9 +52,9 @@ export function ButtonsView({
   const activatorLabel = hyperActivator ? (BUTTON_LABELS[locale][hyperActivator.id] ?? hyperActivator.id) : null;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+    <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
       {/* Model-accurate Visual Hardware Blueprint + Sticky On-Board Bar */}
-      <SurfaceCard primaryContent={true} className="xl:col-span-8 min-w-0">
+      <SurfaceCard primaryContent={true} className="xl:col-span-8 min-w-0 flex flex-col justify-between">
         <Stack gap="4">
           <Inline gap="2" justify="between" wrap={true}>
             <SegmentedControl
@@ -83,7 +83,6 @@ export function ButtonsView({
                 options={[
                   { value: "side", label: vocab.viewSide },
                   { value: "top", label: vocab.viewTop },
-                  { value: "both", label: vocab.viewBoth },
                 ]}
               />
             </Inline>

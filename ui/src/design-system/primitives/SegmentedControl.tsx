@@ -20,6 +20,7 @@ export function SegmentedControl<T extends string>({
   size = "sm",
   ariaLabel,
   dir,
+  fullWidth = false,
 }: {
   options: readonly SegmentOption<T>[];
   value: T;
@@ -27,13 +28,14 @@ export function SegmentedControl<T extends string>({
   size?: ControlSize;
   ariaLabel: string;
   dir?: "ltr" | "rtl" | "auto";
+  fullWidth?: boolean;
 }) {
   return (
     <div
       role="group"
       aria-label={ariaLabel}
       dir={dir}
-      className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-[var(--radius-md)] bg-[var(--surface-2)] p-1"
+      className={`${fullWidth ? "flex w-full" : "inline-flex"} max-w-full flex-wrap items-center gap-1 rounded-[var(--radius-md)] bg-[var(--surface-2)] p-1`}
     >
       {options.map((opt) => {
         const isActive = opt.value === value;
@@ -44,10 +46,10 @@ export function SegmentedControl<T extends string>({
             aria-pressed={isActive}
             data-active={isActive ? "true" : undefined}
             onClick={() => onChange(opt.value)}
-            className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-sm)] px-3 text-xs font-medium grip-transition grip-focus cursor-pointer ${BTN_SIZE_CLS[size]} ${
+            className={`${fullWidth ? "flex-1 min-w-0" : ""} inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-sm)] px-3 text-xs font-medium grip-transition grip-focus cursor-pointer ${BTN_SIZE_CLS[size]} ${
               isActive
-                ? "bg-[var(--brand)] text-[var(--brand-fg)] font-semibold"
-                : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                ? "bg-[var(--surface-0)] text-[var(--fg)] font-semibold border border-[var(--border)]"
+                : "border border-transparent text-[var(--fg-muted)] hover:text-[var(--fg)]"
             }`}
           >
             {opt.icon}

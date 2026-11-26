@@ -12,11 +12,12 @@ import {
   TextInput,
   TileButton,
 } from "../design-system/primitives";
-import { formatFriendlyAppName, type Vocab } from "../i18n/vocab";
+import { formatFriendlyAppName, formatLinkedAppsCount, type Locale, type Vocab } from "../i18n/vocab";
 
 export function ProfilesView({
   device,
   runningApps,
+  locale,
   vocab,
   onSelectProfile,
   onCreateProfile,
@@ -28,6 +29,7 @@ export function ProfilesView({
 }: {
   device: DeviceSnapshot;
   runningApps: readonly RunningApp[];
+  locale: Locale;
   vocab: Vocab;
   onSelectProfile: (name: string) => void;
   onCreateProfile: (name: string) => void;
@@ -131,7 +133,7 @@ export function ProfilesView({
                   <span className="flex items-center justify-between gap-2 w-full">
                     <span className="text-sm font-bold truncate">{p.name}</span>
                     <span className="text-xs opacity-80 tabular-nums shrink-0">
-                      {p.apps.length > 0 ? `${p.apps.length}` : "—"}
+                      {formatLinkedAppsCount(p.apps.length, locale)}
                     </span>
                   </span>
                 </TileButton>

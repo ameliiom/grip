@@ -9,6 +9,8 @@ interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "cla
   active?: boolean;
   children: ReactNode;
   fullWidth?: boolean;
+  iconOnly?: boolean;
+  dashed?: boolean;
 }
 
 const SIZE_CLS: Record<ControlSize, string> = {
@@ -17,11 +19,19 @@ const SIZE_CLS: Record<ControlSize, string> = {
   lg: "h-[var(--ctrl-lg)] min-w-[var(--ctrl-lg)] px-4 text-sm",
 };
 
+const ICON_SIZE_CLS: Record<ControlSize, string> = {
+  sm: "h-[var(--ctrl-sm)] w-[var(--ctrl-sm)] px-0 text-xs",
+  md: "h-[var(--ctrl-md)] w-[var(--ctrl-md)] px-0 text-sm",
+  lg: "h-[var(--ctrl-lg)] w-[var(--ctrl-lg)] px-0 text-sm",
+};
+
 export function Button({
   variant = "secondary",
   size = "md",
   active = false,
   fullWidth = false,
+  iconOnly = false,
+  dashed = false,
   type = "button",
   children,
   ...rest
@@ -35,8 +45,15 @@ export function Button({
     tone = "bg-[var(--surface-2)] text-[var(--status-danger)] hover:brightness-95";
   }
 
+  if (dashed && !active) {
+    tone = "border border-dashed border-[var(--hw-stroke)] bg-[var(--surface-0)] text-[var(--fg)] hover:bg-[var(--surface-2)]";
+  }
+
   if (active && variant !== "primary") {
-    tone = "bg-[var(--brand)] text-[var(--brand-fg)] font-semibold";
+    tone =
+      variant === "ghost"
+        ? "bg-[var(--surface-2)] text-[var(--fg)] font-semibold"
+        : "bg-[var(--fg)] text-[var(--surface-0)] font-semibold";
   }
 
   return (
@@ -44,7 +61,7 @@ export function Button({
       type={type}
       data-variant={variant === "primary" ? "primary" : undefined}
       data-active={active ? "true" : undefined}
-      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] font-medium grip-transition grip-focus cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed shrink-0 ${SIZE_CLS[size]} ${tone} ${fullWidth ? "w-full min-w-0" : ""}`}
+      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] font-medium grip-transition grip-focus cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed shrink-0 ${iconOnly ? ICON_SIZE_CLS[size] : SIZE_CLS[size]} ${tone} ${fullWidth ? "w-full min-w-0" : ""}`}
       {...rest}
     >
       {children}

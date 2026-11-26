@@ -9,6 +9,7 @@ export function TileButton({
   compact = false,
   fillCell = false,
   fullWidth = true,
+  tone = "default",
   children,
 }: {
   active?: boolean;
@@ -19,6 +20,7 @@ export function TileButton({
   compact?: boolean;
   fillCell?: boolean;
   fullWidth?: boolean;
+  tone?: "default" | "hardware";
   children: ReactNode;
 }) {
   const alignCls =
@@ -32,6 +34,14 @@ export function TileButton({
     : compact
       ? "min-h-[44px] sm:min-h-[38px] px-2.5 py-1"
       : "min-h-[44px] px-3 py-1.5";
+  const stateCls =
+    tone === "hardware"
+      ? active
+        ? "bg-[var(--brand)] text-[var(--brand-fg)] border border-[var(--brand)] font-semibold"
+        : "bg-[var(--hw-shell)] hover:border-[var(--fg)] text-[var(--fg)] border border-[var(--hw-stroke)]"
+      : active
+        ? "bg-[var(--surface-2)] border border-[var(--fg)] text-[var(--fg)] font-semibold"
+        : "bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-[var(--fg)] border border-[var(--border)]";
 
   return (
     <button
@@ -42,11 +52,7 @@ export function TileButton({
       data-active={active ? "true" : undefined}
       data-multiline-tile="true"
       onClick={onClick}
-      className={`${fullWidth ? "w-full min-w-0" : ""} ${sizeCls} rounded-[var(--radius-md)] flex flex-col justify-center gap-0.5 grip-transition grip-focus cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed overflow-hidden ${alignCls} ${
-        active
-          ? "bg-[var(--brand)] text-[var(--brand-fg)] font-semibold"
-          : "bg-[var(--surface-1)] hover:brightness-95 text-[var(--fg)] border border-[var(--border)]"
-      }`}
+      className={`${fullWidth ? "w-full min-w-0" : ""} ${sizeCls} rounded-[var(--radius-md)] flex flex-col justify-center gap-0.5 grip-transition grip-focus cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed overflow-hidden ${alignCls} ${stateCls}`}
     >
       {children}
     </button>

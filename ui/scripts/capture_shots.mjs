@@ -7,33 +7,36 @@ export default async function capture(b) {
   await b.goto(`${URL}/#buttons`);
   await b.waitFor('[data-primary-content="true"]', 15000);
   await b.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-  await b.shot(`${OUT_DIR}/grip-v2-buttons-dark.png`);
+  await b.shot(`${OUT_DIR}/grip-v3-buttons-dark.png`);
+
+  await b.eval("[...document.querySelectorAll('button')].find(x => (x.textContent || '').includes('الأعلى'))?.click()");
+  await b.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+  await b.shot(`${OUT_DIR}/grip-v3-buttons-top-dark.png`);
 
   await b.colorScheme("light");
-  await b.eval("[...document.querySelectorAll('button')].find(x => (x.textContent || '').trim() === 'الأعلى')?.click()");
   await b.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-  await b.shot(`${OUT_DIR}/grip-v2-buttons-top-light.png`);
+  await b.shot(`${OUT_DIR}/grip-v3-buttons-top-light.png`);
 
   await b.colorScheme("dark");
   await b.goto(`${URL}/#performance`);
   await b.waitFor('[data-primary-content="true"]', 15000);
   await b.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-  await b.shot(`${OUT_DIR}/grip-v2-performance-dark.png`);
+  await b.shot(`${OUT_DIR}/grip-v3-performance-dark.png`);
 
   await b.goto(`${URL}/#profiles`);
   await b.waitFor('[data-primary-content="true"]', 15000);
   await b.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-  await b.shot(`${OUT_DIR}/grip-v2-profiles-dark.png`);
+  await b.shot(`${OUT_DIR}/grip-v3-profiles-dark.png`);
 
   await b.goto(`${URL}/#buttons`);
   await b.viewport(375, 900, true);
   await b.waitFor('[data-primary-content="true"]', 15000);
   await b.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-  await b.shot(`${OUT_DIR}/grip-v2-mobile-dark.png`);
+  await b.shot(`${OUT_DIR}/grip-v3-mobile-dark.png`);
 
   const errs = b.errors();
   if (errs.length) {
     throw new Error("Page errors during screenshot capture: " + JSON.stringify(errs));
   }
-  console.log("[PASS] Captured 5 full-size v2 screenshots cleanly");
+  console.log("[PASS] Captured 6 full-size v3 screenshots cleanly");
 }

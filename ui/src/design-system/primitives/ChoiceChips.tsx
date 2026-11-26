@@ -21,6 +21,7 @@ export function ChoiceChips<T extends string | number>({
   size = "md",
   ariaLabel,
   dir,
+  columns,
 }: {
   options: readonly ChipOption<T>[];
   value: T | null;
@@ -28,9 +29,17 @@ export function ChoiceChips<T extends string | number>({
   size?: ControlSize;
   ariaLabel: string;
   dir?: "ltr" | "rtl" | "auto";
+  columns?: 2 | 3;
 }) {
+  const layoutCls =
+    columns === 3
+      ? "grid grid-cols-2 sm:grid-cols-3 gap-1.5 w-full"
+      : columns === 2
+        ? "grid grid-cols-2 gap-1.5 w-full"
+        : "flex flex-wrap items-center gap-2";
+
   return (
-    <div role="group" aria-label={ariaLabel} dir={dir} className="flex flex-wrap items-center gap-2">
+    <div role="group" aria-label={ariaLabel} dir={dir} className={layoutCls}>
       {options.map((opt) => {
         const isActive = value !== null && opt.value === value;
         return (
@@ -43,12 +52,12 @@ export function ChoiceChips<T extends string | number>({
             onClick={() => onChange(opt.value)}
             className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-md)] font-medium grip-transition grip-focus cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${SIZE_CLS[size]} ${
               isActive
-                ? "bg-[var(--brand)] text-[var(--brand-fg)] font-semibold"
-                : "bg-[var(--surface-2)] text-[var(--fg)] hover:brightness-95"
+                ? "bg-[var(--fg)] text-[var(--surface-0)] border border-[var(--fg)] font-semibold"
+                : "bg-[var(--surface-0)] text-[var(--fg)] border border-[var(--border)] hover:bg-[var(--surface-2)]"
             }`}
           >
             {opt.icon}
-            <span className="tabular-nums">{opt.label}</span>
+            <span className="tabular-nums truncate">{opt.label}</span>
           </button>
         );
       })}

@@ -13,6 +13,7 @@ import {
   Square,
   Sun,
   Undo2,
+  Waves,
   X,
 } from "lucide-react";
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
@@ -22,6 +23,7 @@ import {
   type AppSettings,
   type FirmwareCheckResult,
   type LayerName,
+  type RawAccelSettings,
   type WorkspaceSnapshot,
 } from "../acl/transport";
 import {
@@ -42,11 +44,12 @@ import type { Vocab } from "../i18n/vocab";
 import { ButtonsView } from "./ButtonsView";
 import { LightingView } from "./LightingView";
 import { MacrosView } from "./MacrosView";
+import { MotionView } from "./MotionView";
 import { PerformanceView } from "./PerformanceView";
 import { ProfilesView } from "./ProfilesView";
 import { SettingsView } from "./SettingsView";
 
-export type NavSection = "buttons" | "performance" | "profiles" | "macros" | "lighting" | "settings";
+export type NavSection = "buttons" | "performance" | "motion" | "profiles" | "macros" | "lighting" | "settings";
 
 export function WorkspaceShell({
   workspace,
@@ -87,6 +90,9 @@ export function WorkspaceShell({
   onSetLightingOff,
   onSyncLighting,
   onUpdateSettings,
+  onApplyRawAccel,
+  onOpenRawAccelDownload,
+  onRefreshMotionStatus,
   onCheckFirmware,
   onCopyReport,
   onOpenFolder,
@@ -131,6 +137,9 @@ export function WorkspaceShell({
   onSetLightingOff: (zone: string) => void;
   onSyncLighting: (color?: string) => void;
   onUpdateSettings: (settings: AppSettings) => void;
+  onApplyRawAccel: (settings: RawAccelSettings) => void;
+  onOpenRawAccelDownload: () => void;
+  onRefreshMotionStatus: () => void;
   onCheckFirmware: () => void;
   onCopyReport: () => Promise<void>;
   onOpenFolder: () => void;
@@ -182,6 +191,7 @@ export function WorkspaceShell({
   const primaryNav: { id: NavSection; label: string; shortLabel: string; icon: ReactNode }[] = [
     { id: "buttons", label: vocab.navButtons, shortLabel: vocab.navButtonsShort, icon: <MousePointerClick size={15} strokeWidth={2} /> },
     { id: "performance", label: vocab.navPerformance, shortLabel: vocab.navPerformanceShort, icon: <Sliders size={15} strokeWidth={2} /> },
+    { id: "motion", label: vocab.navMotion, shortLabel: vocab.navMotionShort, icon: <Waves size={15} strokeWidth={2} /> },
     { id: "profiles", label: vocab.navProfiles, shortLabel: vocab.navProfilesShort, icon: <Gamepad2 size={15} strokeWidth={2} /> },
     ...(device?.capabilities.hasMacros
       ? [{ id: "macros" as const, label: vocab.navMacros, shortLabel: vocab.navMacros, icon: <Sparkles size={15} strokeWidth={2} /> }]
@@ -275,7 +285,7 @@ export function WorkspaceShell({
     <div
       className={
         !useSidebar
-          ? "flex flex-wrap items-center justify-between gap-2 w-full md:flex-nowrap lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center"
+          ? "flex flex-wrap items-center justify-between gap-2 w-full md:flex-nowrap xl:grid xl:grid-cols-[1fr_auto_1fr] xl:items-center"
           : "flex flex-wrap items-center justify-between gap-2 w-full"
       }
     >
@@ -298,7 +308,7 @@ export function WorkspaceShell({
       {!useSidebar ? (
         <nav
           data-shift-probe="nav"
-          className="hidden md:flex items-center justify-self-center"
+          className="hidden lg:flex items-center justify-self-center"
           aria-label={vocab.appName}
         >
           <SegmentedControl
@@ -395,7 +405,7 @@ export function WorkspaceShell({
           </Button>
         </span>
         {!useSidebar ? (
-          <span className="hidden md:inline-flex">
+          <span className="hidden lg:inline-flex">
             <Button
               variant="ghost"
               size="sm"
@@ -451,12 +461,12 @@ export function WorkspaceShell({
   );
 
   const mobileNavItems = [
-    ...primaryNav.slice(0, 3),
+    ...primaryNav.slice(0, 4),
     { id: "settings" as const, label: vocab.navSettings, shortLabel: vocab.navSettingsShort, icon: <Settings size={15} strokeWidth={2} /> },
   ];
 
   const mobileNavContent = (
-    <nav className="grid grid-cols-4 gap-1 w-full" aria-label={vocab.appName}>
+    <nav className={`grid ${mobileNavItems.length >= 5 ? "grid-cols-5" : "grid-cols-4"} gap-1 w-full`} aria-label={vocab.appName}>
       {mobileNavItems.map((item) => (
         <Button
           key={item.id}
@@ -498,7 +508,7 @@ export function WorkspaceShell({
             <p className="text-xs text-[var(--fg-muted)]">{vocab.loadingBody}</p>
           </Stack>
         </SurfaceCard>
-      ) : !device && section !== "settings" ? (
+      ) : !device && section !== "settings" && section !== "motion" ? (
         <SurfaceCard primaryContent={true} compactPage={true}>
           <Stack gap="4" className="items-start">
             <h1 className="text-lg font-bold">{vocab.noDevicesTitle}</h1>
@@ -538,6 +548,22 @@ export function WorkspaceShell({
           onSelectPolling={onSelectPolling}
           onSetSleep={onSetSleep}
           onSetScroll={onSetScroll}
+        />
+      ) : null}
+
+      {section === "motion" && workspace && settings ? (
+        <MotionView
+          settings={settings}
+          device={device}
+          smootherStatus={workspace.smootherStatus}
+          rawAccelStatus={workspace.rawAccelStatus}
+          locale={settings.locale}
+          vocab={vocab}
+          onUpdateSettings={onUpdateSettings}
+          onApplyRawAccel={onApplyRawAccel}
+          onOpenRawAccelDownload={onOpenRawAccelDownload}
+          onRefreshMotionStatus={onRefreshMotionStatus}
+          onSelectPolling={onSelectPolling}
         />
       ) : null}
 

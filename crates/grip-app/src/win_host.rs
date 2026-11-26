@@ -53,10 +53,11 @@ mod imp {
     use windows_sys::Win32::Graphics::Dwm::DwmSetWindowAttribute;
     use windows_sys::Win32::Graphics::Gdi::{
         BeginPaint, CreateCompatibleDC, CreateDIBSection, CreateFontW, CreateRoundRectRgn, CreateSolidBrush, DeleteDC,
-        DeleteObject, DrawTextW, EndPaint, FillRect, GetDC, GetDeviceCaps, InvalidateRect, ReleaseDC, SelectObject,
-        SetBkMode, SetTextColor, SetWindowRgn, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, CLEARTYPE_QUALITY,
-        CLIP_DEFAULT_PRECIS, DEFAULT_CHARSET, DEFAULT_PITCH, DIB_RGB_COLORS, DT_CENTER, DT_SINGLELINE, DT_VCENTER,
-        FF_DONTCARE, FW_SEMIBOLD, HFONT, LOGPIXELSY, OUT_DEFAULT_PRECIS, PAINTSTRUCT, TRANSPARENT,
+        DeleteObject, DrawTextW, EndPaint, FillRect, GetDC, GetDeviceCaps, GetMonitorInfoW, InvalidateRect,
+        MonitorFromWindow, ReleaseDC, SelectObject, SetBkMode, SetTextColor, SetWindowRgn, BITMAPINFO,
+        BITMAPINFOHEADER, BI_RGB, CLEARTYPE_QUALITY, CLIP_DEFAULT_PRECIS, DEFAULT_CHARSET, DEFAULT_PITCH,
+        DIB_RGB_COLORS, DT_CENTER, DT_SINGLELINE, DT_VCENTER, FF_DONTCARE, FW_SEMIBOLD, HFONT, LOGPIXELSY,
+        MONITORINFO, MONITOR_DEFAULTTONEAREST, OUT_DEFAULT_PRECIS, PAINTSTRUCT, TRANSPARENT,
     };
     use windows_sys::Win32::Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW};
     use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -71,13 +72,13 @@ mod imp {
     use windows_sys::Win32::UI::Shell::{ExtractIconExW, ShellExecuteW};
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         CreateWindowExW, DefWindowProcW, DestroyIcon, DispatchMessageW, DrawIconEx, EnumWindows, FindWindowW,
-        GetClientRect, GetForegroundWindow, GetMessageW, GetWindow, GetWindowTextLengthW, GetWindowThreadProcessId,
-        IsWindowVisible, KillTimer, LoadCursorW, PostMessageW, PostThreadMessageW, RegisterClassW,
-        RegisterWindowMessageW, SetForegroundWindow, SetLayeredWindowAttributes, SetTimer, SetWindowPos, ShowWindow,
-        SystemParametersInfoW, TranslateMessage, DI_NORMAL, GW_OWNER, HICON, HTTRANSPARENT, HWND_TOPMOST, IDC_ARROW,
-        LWA_ALPHA, MSG, SPI_GETWORKAREA, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_HIDE, SW_RESTORE, SW_SHOWNORMAL, WM_APP,
-        WM_NCHITTEST, WM_PAINT, WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-        WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+        GetClassNameW, GetClientRect, GetForegroundWindow, GetMessageW, GetWindow, GetWindowRect,
+        GetWindowTextLengthW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, KillTimer, LoadCursorW,
+        PostMessageW, PostThreadMessageW, RegisterClassW, RegisterWindowMessageW, SetForegroundWindow,
+        SetLayeredWindowAttributes, SetTimer, SetWindowPos, ShowWindow, SystemParametersInfoW, TranslateMessage,
+        DI_NORMAL, GW_OWNER, HICON, HTTRANSPARENT, HWND_TOPMOST, IDC_ARROW, LWA_ALPHA, MSG, SPI_GETWORKAREA,
+        SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_HIDE, SW_RESTORE, SW_SHOWNORMAL, WM_APP, WM_NCHITTEST, WM_PAINT, WM_TIMER,
+        WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
     };
 
     const WM_SHOW_OSD: u32 = WM_APP + 21;
@@ -206,6 +207,51 @@ mod imp {
         let raw = String::from_utf16_lossy(&buf[..len as usize]);
         let norm = secbird_core::profile::normalize_app(&raw);
         (!norm.is_empty()).then_some((norm, raw))
+    }
+
+    pub fn is_foreground_fullscreen() -> bool {
+        if cfg!(test) {
+            return false;
+        }
+        unsafe {
+            let hwnd = GetForegroundWindow();
+            if hwnd.is_null() || IsIconic(hwnd) != 0 {
+                return false;
+            }
+            let mut cls_buf = [0u16; 64];
+            let cls_len = GetClassNameW(hwnd, cls_buf.as_mut_ptr(), cls_buf.len() as i32);
+            if cls_len > 0 {
+                let cls = String::from_utf16_lossy(&cls_buf[..cls_len as usize]);
+                if matches!(
+                    cls.as_str(),
+                    "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd"
+                ) {
+                    return false;
+                }
+            }
+            if let Some((exe, _)) = exe_of(hwnd) {
+                if matches!(exe.as_str(), "explorer.exe" | "grip.exe" | "grip-app.exe") {
+                    return false;
+                }
+            }
+            let mut rc: RECT = zeroed();
+            if GetWindowRect(hwnd, &mut rc) == 0 {
+                return false;
+            }
+            let mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            if mon.is_null() {
+                return false;
+            }
+            let mut mi: MONITORINFO = zeroed();
+            mi.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+            if GetMonitorInfoW(mon, &mut mi) == 0 {
+                return false;
+            }
+            rc.left <= mi.rcMonitor.left
+                && rc.top <= mi.rcMonitor.top
+                && rc.right >= mi.rcMonitor.right
+                && rc.bottom >= mi.rcMonitor.bottom
+        }
     }
 
     static APP_META_CACHE: OnceLock<Mutex<BTreeMap<String, (String, Option<String>)>>> = OnceLock::new();
@@ -747,12 +793,16 @@ mod imp {
         true
     }
 
+    pub fn is_foreground_fullscreen() -> bool {
+        false
+    }
+
     pub fn start_host_monitor(_callbacks: HostCallbacks) {}
 }
 
 pub use imp::{
-    acquire_single_instance, open_folder, running_apps, set_window_dark_titlebar, show_osd, start_host_monitor,
-    windows_prefers_dark, HostCallbacks,
+    acquire_single_instance, is_foreground_fullscreen, open_folder, running_apps, set_window_dark_titlebar, show_osd,
+    start_host_monitor, windows_prefers_dark, HostCallbacks,
 };
 
 #[cfg(test)]

@@ -17,6 +17,102 @@ pub fn grip_config_dir() -> PathBuf {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+pub struct DesktopSmoothSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_smooth_preset")]
+    pub preset: String,
+    #[serde(default = "default_strength")]
+    pub strength: u8,
+    #[serde(default = "default_responsiveness")]
+    pub responsiveness: u8,
+    #[serde(default = "default_micro_precision")]
+    pub micro_precision: u8,
+    #[serde(default)]
+    pub rotation_deg: i8,
+    #[serde(default = "default_true")]
+    pub bypass_in_games: bool,
+}
+
+impl Default for DesktopSmoothSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            preset: default_smooth_preset(),
+            strength: default_strength(),
+            responsiveness: default_responsiveness(),
+            micro_precision: default_micro_precision(),
+            rotation_deg: 0,
+            bypass_in_games: true,
+        }
+    }
+}
+
+impl DesktopSmoothSettings {
+    pub fn normalize(&mut self) {
+        self.preset = match self.preset.trim() {
+            "light" => "light".into(),
+            "silk" => "silk".into(),
+            "custom" => "custom".into(),
+            _ => "balanced".into(),
+        };
+        self.strength = self.strength.min(100);
+        self.responsiveness = self.responsiveness.min(100);
+        self.micro_precision = self.micro_precision.min(50);
+        self.rotation_deg = self.rotation_deg.clamp(-30, 30);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RawAccelSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_rawaccel_mode")]
+    pub mode: String,
+    #[serde(default)]
+    pub output_smoothing_tenths: u16,
+    #[serde(default = "default_sens_multiplier_pct")]
+    pub sens_multiplier_pct: u16,
+    #[serde(default)]
+    pub rotation_deg: i8,
+    #[serde(default = "default_motivity_pct")]
+    pub motivity_pct: u16,
+    #[serde(default = "default_sync_speed")]
+    pub sync_speed: u16,
+}
+
+impl Default for RawAccelSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            mode: default_rawaccel_mode(),
+            output_smoothing_tenths: 0,
+            sens_multiplier_pct: default_sens_multiplier_pct(),
+            rotation_deg: 0,
+            motivity_pct: default_motivity_pct(),
+            sync_speed: default_sync_speed(),
+        }
+    }
+}
+
+impl RawAccelSettings {
+    pub fn normalize(&mut self) {
+        self.mode = match self.mode.trim() {
+            "natural" => "natural".into(),
+            "synchronous" => "synchronous".into(),
+            _ => "noaccel".into(),
+        };
+        self.output_smoothing_tenths = self.output_smoothing_tenths.min(100);
+        self.sens_multiplier_pct = self.sens_multiplier_pct.clamp(25, 200);
+        self.rotation_deg = self.rotation_deg.clamp(-30, 30);
+        self.motivity_pct = self.motivity_pct.clamp(110, 250);
+        self.sync_speed = self.sync_speed.clamp(5, 60);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     #[serde(default)]
     pub autostart: bool,
@@ -36,6 +132,10 @@ pub struct AppSettings {
     pub brand_hex: String,
     #[serde(default = "default_locale")]
     pub locale: String,
+    #[serde(default)]
+    pub desktop_smooth: DesktopSmoothSettings,
+    #[serde(default)]
+    pub raw_accel: RawAccelSettings,
 }
 
 pub fn normalize_theme(raw: &str) -> String {
@@ -66,6 +166,38 @@ fn default_locale() -> String {
     "ar".into()
 }
 
+fn default_smooth_preset() -> String {
+    "balanced".into()
+}
+
+fn default_strength() -> u8 {
+    55
+}
+
+fn default_responsiveness() -> u8 {
+    65
+}
+
+fn default_micro_precision() -> u8 {
+    15
+}
+
+fn default_rawaccel_mode() -> String {
+    "noaccel".into()
+}
+
+fn default_sens_multiplier_pct() -> u16 {
+    100
+}
+
+fn default_motivity_pct() -> u16 {
+    150
+}
+
+fn default_sync_speed() -> u16 {
+    15
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -78,18 +210,26 @@ impl Default for AppSettings {
             theme: "system".into(),
             brand_hex: "#d4af37".into(),
             locale: "ar".into(),
+            desktop_smooth: DesktopSmoothSettings::default(),
+            raw_accel: RawAccelSettings::default(),
         }
     }
 }
 
 impl AppSettings {
+    pub fn normalize(&mut self) {
+        self.battery_warning_at = self.battery_warning_at.clamp(5, 95);
+        self.theme = normalize_theme(&self.theme);
+        self.desktop_smooth.normalize();
+        self.raw_accel.normalize();
+    }
+
     pub fn load(path: &std::path::Path) -> Self {
         let mut s: Self = std::fs::read_to_string(path)
             .ok()
             .and_then(|raw| serde_json::from_str(raw.trim_start_matches('\u{feff}')).ok())
             .unwrap_or_default();
-        s.battery_warning_at = s.battery_warning_at.clamp(5, 95);
-        s.theme = normalize_theme(&s.theme);
+        s.normalize();
         s.autostart = autostart_enabled();
         s
     }

@@ -419,6 +419,8 @@ export interface Vocab {
   navButtonsShort: string;
   navPerformance: string;
   navPerformanceShort: string;
+  navMotion: string;
+  navMotionShort: string;
   navProfiles: string;
   navProfilesShort: string;
   navMacros: string;
@@ -582,6 +584,42 @@ export interface Vocab {
   toastRestoredAll: string;
   toastRestoredFactory: string;
   toastImportedProfiles: string;
+  toastRawAccelApplied: string;
+  motionDesktopTitle: string;
+  motionDesktopHint: string;
+  motionEnableLabel: string;
+  motionActiveBadge: string;
+  motionPausedGameBadge: string;
+  motionOffBadge: string;
+  motionPresetLight: string;
+  motionPresetBalanced: string;
+  motionPresetSilk: string;
+  motionStrengthLabel: string;
+  motionRespLabel: string;
+  motionMicroLabel: string;
+  motionRotationLabel: string;
+  motionResetRotation: string;
+  motionBypassGamesLabel: string;
+  motionBypassGamesHint: string;
+  motionCurveRawLegend: string;
+  motionCurveSmoothLegend: string;
+  motionGamingTitle: string;
+  motionGamingReadyBadge: string;
+  motionGamingInstalledBadge: string;
+  motionGamingMissingBadge: string;
+  motionPollingBoostTitle: string;
+  motionPollingBoostAction: string;
+  motionRawAccelEnableLabel: string;
+  motionRawAccelModeLabel: string;
+  motionModeFlat: string;
+  motionModeNatural: string;
+  motionModeSync: string;
+  motionRawAccelSmoothLabel: string;
+  motionRawAccelSensLabel: string;
+  motionRawAccelApply: string;
+  motionRawAccelSetupHint: string;
+  motionRawAccelDownload: string;
+  motionRawAccelRefresh: string;
 }
 
 export const VOCAB: Record<Locale, Vocab> = {
@@ -591,6 +629,8 @@ export const VOCAB: Record<Locale, Vocab> = {
     navButtonsShort: "أزرار",
     navPerformance: "السرعة والطاقة",
     navPerformanceShort: "سرعة",
+    navMotion: "التنعيم والدقة",
+    navMotionShort: "تنعيم",
     navProfiles: "البروفايلات والألعاب",
     navProfilesShort: "ملفات",
     navMacros: "الماكرو",
@@ -754,6 +794,42 @@ export const VOCAB: Record<Locale, Vocab> = {
     toastRestoredAll: "تم استرجاع جميع الأزرار للوضع الافتراضي",
     toastRestoredFactory: "تم استرجاع إعداد المصنع للذاكرة",
     toastImportedProfiles: "تم استيراد النسخة الاحتياطية بنجاح",
+    toastRawAccelApplied: "تم تطبيق إعدادات الدقة والتنعيم للألعاب بنجاح",
+    motionDesktopTitle: "تنعيم حركة المكتب والتصميم",
+    motionDesktopHint: "ينعّم الحركات البطيئة ويبقي الحركات السريعة فورية بدون ثقل",
+    motionEnableLabel: "تفعيل التنعيم الذكي",
+    motionActiveBadge: "فعّال",
+    motionPausedGameBadge: "متوقف مؤقتاً داخل اللعبة",
+    motionOffBadge: "مغلق",
+    motionPresetLight: "خفيف",
+    motionPresetBalanced: "متوازن",
+    motionPresetSilk: "فائق النعومة",
+    motionStrengthLabel: "قوة التنعيم",
+    motionRespLabel: "استجابة الحركة السريعة",
+    motionMicroLabel: "تثبيت الدقة البطيئة",
+    motionRotationLabel: "ميلان مسكة اليد",
+    motionResetRotation: "تصفير",
+    motionBypassGamesLabel: "إيقاف تلقائي داخل الألعاب (حماية وأداء)",
+    motionBypassGamesHint: "يتوقف التنعيم فوراً عند فتح أوفرواتش أو أي لعبة بملء الشاشة",
+    motionCurveRawLegend: "الحركة الخام",
+    motionCurveSmoothLegend: "بعد التنعيم الذكي",
+    motionGamingTitle: "دقة ونعومة الألعاب",
+    motionGamingReadyBadge: "جاهز وفعّال",
+    motionGamingInstalledBadge: "مثبّت — بانتظار التفعيل",
+    motionGamingMissingBadge: "غير مثبّت بعد",
+    motionPollingBoostTitle: "استجابة الماوس الحالية أقل من الحد الأقصى لنعومة 240Hz",
+    motionPollingBoostAction: "رفع الاستجابة إلى",
+    motionRawAccelEnableLabel: "تفعيل محرك Raw Accel للألعاب",
+    motionRawAccelModeLabel: "نوع الاستجابة",
+    motionModeFlat: "ثابت",
+    motionModeNatural: "طبيعي",
+    motionModeSync: "متزامن",
+    motionRawAccelSmoothLabel: "تنعيم الإخراج",
+    motionRawAccelSensLabel: "مضاعف الحساسية",
+    motionRawAccelApply: "تطبيق على الألعاب",
+    motionRawAccelSetupHint: "لنعومة فائقة داخل الألعاب التنافسية بدون تأخير وبشكل مقبول مع أنظمة الحماية، ثبّت أداة Raw Accel الرسمية ثم اضغط فحص.",
+    motionRawAccelDownload: "تحميل Raw Accel الرسمي",
+    motionRawAccelRefresh: "فحص بعد التثبيت",
   },
   en: {
     appName: "Grip",
@@ -761,6 +837,8 @@ export const VOCAB: Record<Locale, Vocab> = {
     navButtonsShort: "Buttons",
     navPerformance: "Speed & Power",
     navPerformanceShort: "Speed",
+    navMotion: "Motion & Precision",
+    navMotionShort: "Motion",
     navProfiles: "Profiles & Apps",
     navProfilesShort: "Profiles",
     navMacros: "Macros",
@@ -924,5 +1002,41 @@ export const VOCAB: Record<Locale, Vocab> = {
     toastRestoredAll: "All buttons restored to defaults",
     toastRestoredFactory: "Factory memory defaults restored",
     toastImportedProfiles: "Profiles imported successfully",
+    toastRawAccelApplied: "Applied Raw Accel gaming tuning successfully",
+    motionDesktopTitle: "Desktop Adaptive Smoothing",
+    motionDesktopHint: "Smooths slow jitter while keeping quick flicks instant and crisp",
+    motionEnableLabel: "Enable adaptive smoothing",
+    motionActiveBadge: "Active",
+    motionPausedGameBadge: "Auto-paused in game",
+    motionOffBadge: "Off",
+    motionPresetLight: "Light",
+    motionPresetBalanced: "Balanced",
+    motionPresetSilk: "Silky",
+    motionStrengthLabel: "Smoothing strength",
+    motionRespLabel: "Flick responsiveness",
+    motionMicroLabel: "Micro-aim stabilization",
+    motionRotationLabel: "Grip angle rotation",
+    motionResetRotation: "Zero",
+    motionBypassGamesLabel: "Auto-bypass inside fullscreen games",
+    motionBypassGamesHint: "Suspends hook automatically when launching games for anti-cheat safety",
+    motionCurveRawLegend: "Raw stepped input",
+    motionCurveSmoothLegend: "Adaptive smoothed",
+    motionGamingTitle: "Gaming Precision & Smoothing",
+    motionGamingReadyBadge: "Ready",
+    motionGamingInstalledBadge: "Installed — inactive",
+    motionGamingMissingBadge: "Not installed",
+    motionPollingBoostTitle: "Mouse polling is below max smoothness for 240Hz displays",
+    motionPollingBoostAction: "Raise polling to",
+    motionRawAccelEnableLabel: "Enable Raw Accel driver tuning",
+    motionRawAccelModeLabel: "Curve style",
+    motionModeFlat: "Flat",
+    motionModeNatural: "Natural",
+    motionModeSync: "Synchronous",
+    motionRawAccelSmoothLabel: "Output smoothing",
+    motionRawAccelSensLabel: "Sensitivity scale",
+    motionRawAccelApply: "Apply to games",
+    motionRawAccelSetupHint: "For sub-0.1ms anti-cheat-safe cursor smoothing inside competitive games, install official Raw Accel then refresh status.",
+    motionRawAccelDownload: "Get official Raw Accel",
+    motionRawAccelRefresh: "Refresh status",
   },
 };

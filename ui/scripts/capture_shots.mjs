@@ -49,6 +49,15 @@ export default async function capture(b) {
   }
   await b.shot(`${OUT_DIR}/grip-v6-settings-dark.png`);
 
+  await b.goto(`${URL}/?desktop=1#motion`);
+  await b.waitFor('[data-primary-content="true"]', 15000);
+  await b.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+  const motionOverflow = await b.eval("document.documentElement.scrollHeight - window.innerHeight");
+  if (motionOverflow > 2) {
+    throw new Error(`Motion view overflowed 1280x780 vertically by ${motionOverflow}px`);
+  }
+  await b.shot(`${OUT_DIR}/grip-v7-motion-dark.png`);
+
   const errs = b.errors();
   if (errs.length) {
     throw new Error("Page errors during screenshot capture: " + JSON.stringify(errs));

@@ -6,6 +6,7 @@ import {
   type BusCommand,
   type CommandError,
   type FirmwareCheckResult,
+  type RawAccelSettings,
   type WorkspaceSnapshot,
 } from "./acl/transport";
 import { applyThemeTokens, DEFAULT_BRAND_HEX, getSystemTheme, resolveTheme, type ThemeMode } from "./design-system/theme";
@@ -22,12 +23,30 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: "system",
   brandHex: DEFAULT_BRAND_HEX,
   locale: "ar",
+  desktopSmooth: {
+    enabled: false,
+    preset: "balanced",
+    strength: 55,
+    responsiveness: 65,
+    microPrecision: 15,
+    rotationDeg: 0,
+    bypassInGames: true,
+  },
+  rawAccel: {
+    enabled: false,
+    mode: "noaccel",
+    outputSmoothingTenths: 0,
+    sensMultiplierPct: 100,
+    rotationDeg: 0,
+    motivityPct: 150,
+    syncSpeed: 15,
+  },
 };
 
 function getInitialSection(): NavSection {
   if (typeof window === "undefined") return "buttons";
   const hash = window.location.hash.replace(/^#/, "") as NavSection;
-  if (["buttons", "performance", "profiles", "macros", "lighting", "settings"].includes(hash)) {
+  if (["buttons", "performance", "motion", "profiles", "macros", "lighting", "settings"].includes(hash)) {
     return hash;
   }
   return "buttons";
@@ -198,6 +217,11 @@ export function App() {
       onSetLightingOff={(zone) => void run({ type: "setLightingOff", deviceKey: devKey, zone })}
       onSyncLighting={(color) => void run({ type: "syncLighting", color })}
       onUpdateSettings={(next) => void run({ type: "updateSettings", settings: next })}
+      onApplyRawAccel={(raw: RawAccelSettings) =>
+        void run({ type: "applyRawAccel", settings: raw }, vocab.toastRawAccelApplied)
+      }
+      onOpenRawAccelDownload={() => void run({ type: "openRawAccelDownload" })}
+      onRefreshMotionStatus={() => void run({ type: "refreshMotionStatus" })}
       onCheckFirmware={() => void run({ type: "checkFirmware", deviceKey: devKey })}
       onCopyReport={async () => {
         const resp = await run({ type: "generateReport" });

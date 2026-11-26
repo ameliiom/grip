@@ -114,7 +114,7 @@ export function AppShell({
         >
           {header}
         </header>
-        <div className={`${sidebar ? "lg:hidden" : "md:hidden"} border-b border-[var(--border)] bg-[var(--surface-1)] px-3 py-1.5`}>
+        <div className={`${sidebar ? "lg:hidden" : "lg:hidden"} border-b border-[var(--border)] bg-[var(--surface-1)] px-3 py-1.5`}>
           {mobileNav}
         </div>
         <main className="w-full flex-1 min-h-0 min-w-0 px-4 sm:px-6 py-3 flex flex-col gap-3">{children}</main>

@@ -4,7 +4,9 @@
 compile_error!("Release builds must enable `custom-protocol` so frontend assets are embedded.");
 
 mod bus;
+mod raw_accel;
 mod settings;
+mod smoother;
 mod win_host;
 
 use bus::{AppBus, BusCommand, BusResponse, CommandError};
@@ -167,6 +169,7 @@ fn main() {
                         bus.reapply_active();
                     } else if id == "quit" {
                         app.state::<QuitRequested>().0.store(true, Ordering::Relaxed);
+                        smoother::shutdown();
                         app.exit(0);
                     } else if let Some(name) = id.strip_prefix("profile:") {
                         if bus.select_profile_from_tray(name) {
@@ -241,9 +244,12 @@ fn main() {
                 let stay_in_tray = app.state::<Arc<AppBus>>().close_to_tray();
                 if !force_quit && stay_in_tray {
                     api.prevent_exit();
+                } else {
+                    smoother::shutdown();
                 }
             }
         });
+    smoother::shutdown();
 }
 
 #[cfg(test)]

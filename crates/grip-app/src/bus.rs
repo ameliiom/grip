@@ -1,4 +1,6 @@
-use crate::settings::{grip_config_dir, normalize_theme, set_autostart, AppSettings};
+use crate::raw_accel::{self, RawAccelStatus};
+use crate::settings::{grip_config_dir, set_autostart, AppSettings, RawAccelSettings};
+use crate::smoother::{self, SmootherStatus};
 use crate::win_host::{self, RunningApp};
 use secbird_core::actions;
 use secbird_core::buttons::{button_name, Layer};
@@ -8,7 +10,7 @@ use secbird_core::macros::Script;
 use secbird_core::scroll::parse_modes;
 use secbird_core::{discover, hidapi::HidApi, Device, Store};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Mutex;
@@ -172,6 +174,8 @@ pub struct WorkspaceSnapshot {
     pub synapse_running: Vec<String>,
     pub running_apps: Vec<RunningApp>,
     pub settings: AppSettings,
+    pub smoother_status: SmootherStatus,
+    pub raw_accel_status: RawAccelStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -341,6 +345,12 @@ pub enum BusCommand {
         settings: AppSettings,
     },
     #[serde(rename_all = "camelCase")]
+    ApplyRawAccel {
+        settings: RawAccelSettings,
+    },
+    OpenRawAccelDownload,
+    RefreshMotionStatus,
+    #[serde(rename_all = "camelCase")]
     CheckFirmware {
         device_key: String,
     },
@@ -466,6 +476,7 @@ impl AppBus {
             low_battery_notified: BTreeMap::new(),
         };
         let _ = engine.rescan();
+        engine.sync_smoother();
         Self(Mutex::new(engine))
     }
 
@@ -694,6 +705,7 @@ impl BusEngine {
         if norm.is_empty() {
             return false;
         }
+        smoother::notify_foreground_changed(&norm, win_host::is_foreground_fullscreen());
         let is_ar = self.settings.locale == "ar";
         let mut changed = false;
         for dev in &self.devices {
@@ -1042,6 +1054,7 @@ impl BusEngine {
                     .delete(&name)
                     .map_err(CommandError::from_core)?;
                 self.store.save().map_err(CommandError::from_core)?;
+                self.sync_smoother();
             }
             BusCommand::SetProfileApps { device_key, name, apps } => {
                 let idx = self.find_device(Some(&device_key))?;
@@ -1050,6 +1063,7 @@ impl BusEngine {
                     .set_apps(&name, &apps)
                     .map_err(CommandError::from_core)?;
                 self.store.save().map_err(CommandError::from_core)?;
+                self.sync_smoother();
             }
             BusCommand::ExportProfiles => {
                 exported_json = Some(
@@ -1070,6 +1084,7 @@ impl BusEngine {
                 self.store.import_for(incoming, &connected);
                 self.store.save().map_err(CommandError::from_core)?;
                 self.reapply_active();
+                self.sync_smoother();
             }
             BusCommand::CreateMacro { device_key, name, steps } => {
                 let idx = self.find_device(Some(&device_key))?;
@@ -1133,8 +1148,7 @@ impl BusEngine {
                 }
             }
             BusCommand::UpdateSettings { mut settings } => {
-                settings.battery_warning_at = settings.battery_warning_at.clamp(5, 95);
-                settings.theme = normalize_theme(&settings.theme);
+                settings.normalize();
                 if settings.battery_warning_at != self.settings.battery_warning_at
                     || settings.battery_warning != self.settings.battery_warning
                 {
@@ -1146,7 +1160,25 @@ impl BusEngine {
                 }
                 self.settings = settings;
                 self.settings.save(&self.settings_path);
+                self.sync_smoother();
             }
+            BusCommand::ApplyRawAccel { mut settings } => {
+                settings.normalize();
+                self.settings.raw_accel = settings.clone();
+                self.settings.save(&self.settings_path);
+                raw_accel::apply_settings(&settings).map_err(|msg| {
+                    CommandError::new(
+                        "RAW_ACCEL_APPLY_FAILED",
+                        &format!("تعذّر تطبيق تنعيم الألعاب: {msg}"),
+                        &msg,
+                        "Install Raw Accel driver first",
+                    )
+                })?;
+            }
+            BusCommand::OpenRawAccelDownload => {
+                raw_accel::open_release_page();
+            }
+            BusCommand::RefreshMotionStatus => {}
             BusCommand::CheckFirmware { device_key } => {
                 let idx = self.find_device(Some(&device_key))?;
                 let connected: Vec<u16> = self.devices.iter().map(|d| d.pid).collect();
@@ -1253,7 +1285,15 @@ impl BusEngine {
             synapse_running,
             running_apps: win_host::running_apps(),
             settings: self.settings.clone(),
+            smoother_status: smoother::status(),
+            raw_accel_status: raw_accel::detect_status(),
         }
+    }
+
+    fn sync_smoother(&self) {
+        let mut games: HashSet<String> = self.store.apps();
+        games.extend(["overwatch.exe".to_string(), "rumbleverseclient.exe".to_string()]);
+        smoother::sync_config(&self.settings.desktop_smooth, &games);
     }
 
     fn snapshot_for(&mut self, idx: usize) -> DeviceSnapshot {
@@ -1770,12 +1810,18 @@ mod tests {
 
         let mut invalid_theme = updated;
         invalid_theme.theme = "neon-invalid".into();
+        invalid_theme.desktop_smooth.strength = 250;
+        invalid_theme.desktop_smooth.rotation_deg = 80;
+        invalid_theme.raw_accel.sens_multiplier_pct = 999;
         let normalized = bus
             .execute(BusCommand::UpdateSettings { settings: invalid_theme })
             .unwrap()
             .workspace
             .settings;
         assert_eq!(normalized.theme, "system");
+        assert_eq!(normalized.desktop_smooth.strength, 100);
+        assert_eq!(normalized.desktop_smooth.rotation_deg, 30);
+        assert_eq!(normalized.raw_accel.sens_multiplier_pct, 200);
 
         let engine_wrap = AppBus(Mutex::new(bus));
         assert!(!engine_wrap.close_to_tray());

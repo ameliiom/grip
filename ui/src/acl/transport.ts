@@ -89,6 +89,39 @@ export interface RunningApp {
   iconDataUrl?: string | null;
 }
 
+export interface DesktopSmoothSettings {
+  enabled: boolean;
+  preset: "light" | "balanced" | "silk" | "custom";
+  strength: number;
+  responsiveness: number;
+  microPrecision: number;
+  rotationDeg: number;
+  bypassInGames: boolean;
+}
+
+export interface RawAccelSettings {
+  enabled: boolean;
+  mode: "noaccel" | "natural" | "synchronous";
+  outputSmoothingTenths: number;
+  sensMultiplierPct: number;
+  rotationDeg: number;
+  motivityPct: number;
+  syncSpeed: number;
+}
+
+export interface SmootherStatus {
+  hookActive: boolean;
+  bypassedForGame: boolean;
+}
+
+export interface RawAccelStatus {
+  installed: boolean;
+  driverRunning: boolean;
+  writerPath: string | null;
+  settingsPath: string | null;
+  releaseUrl: string;
+}
+
 export interface AppSettings {
   autostart: boolean;
   closeToTray: boolean;
@@ -99,6 +132,8 @@ export interface AppSettings {
   theme: "system" | "dark" | "light";
   brandHex: string;
   locale: "ar" | "en";
+  desktopSmooth: DesktopSmoothSettings;
+  rawAccel: RawAccelSettings;
 }
 
 export interface DeviceSnapshot {
@@ -135,6 +170,8 @@ export interface WorkspaceSnapshot {
   synapseRunning: string[];
   runningApps: RunningApp[];
   settings: AppSettings;
+  smootherStatus: SmootherStatus;
+  rawAccelStatus: RawAccelStatus;
 }
 
 export interface FirmwareCheckResult {
@@ -190,6 +227,9 @@ export type BusCommand =
   | { type: "setLightingOff"; deviceKey: string; zone: string }
   | { type: "syncLighting"; color?: string; effect?: string }
   | { type: "updateSettings"; settings: AppSettings }
+  | { type: "applyRawAccel"; settings: RawAccelSettings }
+  | { type: "openRawAccelDownload" }
+  | { type: "refreshMotionStatus" }
   | { type: "checkFirmware"; deviceKey: string }
   | { type: "generateReport" }
   | { type: "openConfigFolder" }
@@ -323,6 +363,32 @@ const simState: {
       theme: "system",
       brandHex: DEFAULT_BRAND_HEX,
       locale: "ar",
+      desktopSmooth: {
+        enabled: false,
+        preset: "balanced",
+        strength: 55,
+        responsiveness: 65,
+        microPrecision: 15,
+        rotationDeg: 0,
+        bypassInGames: true,
+      },
+      rawAccel: {
+        enabled: false,
+        mode: "noaccel",
+        outputSmoothingTenths: 0,
+        sensMultiplierPct: 100,
+        rotationDeg: 0,
+        motivityPct: 150,
+        syncSpeed: 15,
+      },
+    },
+    smootherStatus: { hookActive: false, bypassedForGame: false },
+    rawAccelStatus: {
+      installed: false,
+      driverRunning: false,
+      writerPath: null,
+      settingsPath: null,
+      releaseUrl: "https://github.com/RawAccelOfficial/rawaccel/releases/latest",
     },
   },
   undoStack: [],
@@ -346,7 +412,21 @@ function runSimulated(cmd: BusCommand): BusResponse {
 
   if (cmd.type === "updateSettings") {
     ws.settings = { ...cmd.settings };
+    ws.smootherStatus = {
+      hookActive: Boolean(ws.settings.desktopSmooth.enabled),
+      bypassedForGame: false,
+    };
     simState.workspace = ws;
+    return { workspace: ws, firmwareCheck, diagnosticReport, exportedJson };
+  }
+
+  if (cmd.type === "applyRawAccel") {
+    ws.settings = { ...ws.settings, rawAccel: { ...cmd.settings } };
+    simState.workspace = ws;
+    return { workspace: ws, firmwareCheck, diagnosticReport, exportedJson };
+  }
+
+  if (cmd.type === "openRawAccelDownload" || cmd.type === "refreshMotionStatus") {
     return { workspace: ws, firmwareCheck, diagnosticReport, exportedJson };
   }
 

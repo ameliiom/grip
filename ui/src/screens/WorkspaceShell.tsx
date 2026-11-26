@@ -26,6 +26,7 @@ import {
   type PaletteItem,
 } from "../design-system/primitives";
 import { DeviceIdentityBar } from "../entities/device/DevicePresenter";
+import { GripMark } from "../entities/brand/GripMark";
 import type { Vocab } from "../i18n/vocab";
 import { ButtonsView } from "./ButtonsView";
 import { LightingView } from "./LightingView";
@@ -39,8 +40,12 @@ export type NavSection = "buttons" | "performance" | "profiles" | "macros" | "li
 export function WorkspaceShell({
   workspace,
   errorMsg,
+  statusToast,
+  onClearToast,
   firmwareResult,
   section,
+  paletteOpen,
+  onPaletteOpenChange,
   vocab,
   onSelectSection,
   onSelectDevice,
@@ -79,8 +84,12 @@ export function WorkspaceShell({
 }: {
   workspace: WorkspaceSnapshot | null;
   errorMsg: string | null;
+  statusToast: string | null;
+  onClearToast: () => void;
   firmwareResult: FirmwareCheckResult | null;
   section: NavSection;
+  paletteOpen: boolean;
+  onPaletteOpenChange: (open: boolean) => void;
   vocab: Vocab;
   onSelectSection: (next: NavSection) => void;
   onSelectDevice: (deviceKey: string) => void;
@@ -119,7 +128,6 @@ export function WorkspaceShell({
 }) {
   const [selectedButton, setSelectedButton] = useState("grid-5");
   const [layer, setLayer] = useState<LayerName>("normal");
-  const [paletteOpen, setPaletteOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const device = workspace?.activeDevice ?? null;
@@ -333,7 +341,7 @@ export function WorkspaceShell({
             variant="ghost"
             size="sm"
             iconOnly={true}
-            onClick={() => setPaletteOpen(true)}
+            onClick={() => onPaletteOpenChange(true)}
             aria-label={vocab.quickCommands}
             title={vocab.quickCommands}
           >
@@ -393,7 +401,15 @@ export function WorkspaceShell({
         </SurfaceCard>
       ) : null}
 
-      {!device && section !== "settings" ? (
+      {!workspace ? (
+        <SurfaceCard primaryContent={true} compactPage={true}>
+          <Stack gap="4" className="items-center justify-center py-12 text-center">
+            <GripMark size={40} />
+            <h1 className="text-base font-bold">{vocab.loadingTitle}</h1>
+            <p className="text-xs text-[var(--fg-muted)]">{vocab.loadingBody}</p>
+          </Stack>
+        </SurfaceCard>
+      ) : !device && section !== "settings" ? (
         <SurfaceCard primaryContent={true} compactPage={true}>
           <Stack gap="4" className="items-start">
             <h1 className="text-lg font-bold">{vocab.noDevicesTitle}</h1>
@@ -489,9 +505,21 @@ export function WorkspaceShell({
         />
       ) : null}
 
+      {statusToast ? (
+        <div
+          key={statusToast}
+          onAnimationEnd={onClearToast}
+          className="fixed bottom-4 end-4 z-50 grip-toast-anim pointer-events-none"
+        >
+          <Badge tone="ok" showDot={true}>
+            {statusToast}
+          </Badge>
+        </div>
+      ) : null}
+
       <CommandPalette
         open={paletteOpen}
-        onOpenChange={setPaletteOpen}
+        onOpenChange={onPaletteOpenChange}
         title={vocab.quickCommands}
         placeholder={vocab.searchPlaceholder}
         closeLabel={vocab.cancel}

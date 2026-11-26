@@ -38,6 +38,13 @@ export default async function audit(b) {
       if (rootGutter.includes('stable')) {
         issues.push('ugly-scrollbar-gutter:' + rootGutter);
       }
+      if (!document.querySelector('link[rel*="icon"][href]')) {
+        issues.push('missing-favicon');
+      }
+      const pgTitle = (document.title || '').trim();
+      if (!pgTitle || ['vite app', 'vite + react', 'vite + react + ts', 'react app', 'tauri app', 'document', 'app', 'index'].includes(pgTitle.toLowerCase())) {
+        issues.push('generic-page-title:' + (pgTitle || 'empty'));
+      }
       if (${w} >= 1024 && document.querySelector('[data-fit-viewport="true"]') && document.documentElement.scrollHeight > window.innerHeight + 2) {
         issues.push('spurious-vertical-overflow:' + document.documentElement.scrollHeight + '>' + window.innerHeight);
       }

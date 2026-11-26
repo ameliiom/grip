@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { DEFAULT_BRAND_HEX } from "../design-system/theme";
 
 export type LayerName = "normal" | "hypershift";
@@ -528,4 +529,11 @@ export async function executeCommand(cmd: BusCommand): Promise<BusResponse> {
   }
   const normalizedCmd = cmd.type === "getSnapshot" ? { type: "getWorkspace" as const, deviceKey: cmd.deviceKey } : cmd;
   return invoke<BusResponse>("execute_command", { cmd: normalizedCmd });
+}
+
+export async function subscribeWorkspaceUpdates(onUpdate: () => void): Promise<() => void> {
+  if (!isTauriRuntime()) {
+    return () => {};
+  }
+  return listen("grip:workspace-updated", () => onUpdate());
 }

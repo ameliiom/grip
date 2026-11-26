@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   executeCommand,
+  subscribeWorkspaceUpdates,
   type AppSettings,
   type BusCommand,
   type CommandError,
@@ -34,8 +35,10 @@ function getInitialSection(): NavSection {
 export function App() {
   const [workspace, setWorkspace] = useState<WorkspaceSnapshot | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [statusToast, setStatusToast] = useState<string | null>(null);
   const [firmwareResult, setFirmwareResult] = useState<FirmwareCheckResult | null>(null);
   const [section, setSection] = useState<NavSection>(getInitialSection);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const settings = workspace?.settings ?? DEFAULT_SETTINGS;
   const vocab = VOCAB[settings.locale];
@@ -81,12 +84,13 @@ export function App() {
   };
 
   const run = useCallback(
-    async (cmd: BusCommand) => {
+    async (cmd: BusCommand, toastOnSuccess?: string) => {
       try {
         setErrorMsg(null);
         const resp = await executeCommand(cmd);
         setWorkspace(resp.workspace);
         if (resp.firmwareCheck) setFirmwareResult(resp.firmwareCheck);
+        if (toastOnSuccess) setStatusToast(toastOnSuccess);
         return resp;
       } catch (err) {
         const ce = err as Partial<CommandError>;
@@ -102,11 +106,29 @@ export function App() {
     void run({ type: "getWorkspace" });
   }, [run]);
 
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    void subscribeWorkspaceUpdates(() => {
+      void run({ type: "getWorkspace" });
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [run]);
+
   const devKey = workspace?.activeDevice?.deviceKey ?? "";
 
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
-      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z" && devKey) {
+      const mod = ev.ctrlKey || ev.metaKey;
+      if (mod && ev.key.toLowerCase() === "k") {
+        ev.preventDefault();
+        setPaletteOpen((open) => !open);
+        return;
+      }
+      if (mod && ev.key.toLowerCase() === "z" && devKey) {
         ev.preventDefault();
         if (ev.shiftKey) void run({ type: "redo", deviceKey: devKey });
         else void run({ type: "undo", deviceKey: devKey });
@@ -120,8 +142,12 @@ export function App() {
     <WorkspaceShell
       workspace={workspace}
       errorMsg={errorMsg}
+      statusToast={statusToast}
+      onClearToast={() => setStatusToast(null)}
       firmwareResult={firmwareResult}
       section={section}
+      paletteOpen={paletteOpen}
+      onPaletteOpenChange={setPaletteOpen}
       vocab={vocab}
       onSelectSection={selectSection}
       onSelectDevice={(k) => void run({ type: "selectDevice", deviceKey: k })}
@@ -132,9 +158,9 @@ export function App() {
       onResetButton={(button, layer) =>
         void run({ type: "resetButton", deviceKey: devKey, button, layer })
       }
-      onRestoreAll={() => void run({ type: "restoreAllButtons", deviceKey: devKey })}
-      onSaveOnboard={() => void run({ type: "saveOnboard", deviceKey: devKey })}
-      onPutBackOnboard={() => void run({ type: "putBackOnboard", deviceKey: devKey })}
+      onRestoreAll={() => void run({ type: "restoreAllButtons", deviceKey: devKey }, vocab.toastRestoredAll)}
+      onSaveOnboard={() => void run({ type: "saveOnboard", deviceKey: devKey }, vocab.toastSavedOnboard)}
+      onPutBackOnboard={() => void run({ type: "putBackOnboard", deviceKey: devKey }, vocab.toastRestoredFactory)}
       onSelectDpiStage={(stage) => void run({ type: "setDpiStage", deviceKey: devKey, stage })}
       onCommitDpiStages={(activeStage, stages) =>
         void run({ type: "setDpiStages", deviceKey: devKey, activeStage, stages })
@@ -157,7 +183,7 @@ export function App() {
         const resp = await run({ type: "exportProfiles" });
         return resp?.exportedJson ?? null;
       }}
-      onImportProfiles={(json) => void run({ type: "importProfiles", json })}
+      onImportProfiles={(json) => void run({ type: "importProfiles", json }, vocab.toastImportedProfiles)}
       onCreateMacro={(name, steps) =>
         void run({ type: "createMacro", deviceKey: devKey, name, steps })
       }

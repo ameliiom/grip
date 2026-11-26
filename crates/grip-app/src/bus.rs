@@ -416,6 +416,13 @@ enum HistoryOp {
     },
 }
 
+pub struct TraySummary {
+    pub locale: String,
+    pub tooltip: String,
+    pub active_profile: Option<String>,
+    pub profiles: Vec<String>,
+}
+
 pub struct BusEngine {
     devices: Vec<Device>,
     active_key: Option<String>,
@@ -426,6 +433,7 @@ pub struct BusEngine {
     undo_stacks: BTreeMap<String, Vec<HistoryOp>>,
     redo_stacks: BTreeMap<String, Vec<HistoryOp>>,
     foreground_applied: BTreeMap<String, String>,
+    low_battery_notified: BTreeMap<String, bool>,
 }
 
 pub struct AppBus(pub Mutex<BusEngine>);
@@ -455,6 +463,7 @@ impl AppBus {
             undo_stacks: BTreeMap::new(),
             redo_stacks: BTreeMap::new(),
             foreground_applied: BTreeMap::new(),
+            low_battery_notified: BTreeMap::new(),
         };
         let _ = engine.rescan();
         Self(Mutex::new(engine))
@@ -465,14 +474,47 @@ impl AppBus {
         guard.execute(cmd)
     }
 
-    pub fn handle_foreground_app(&self, exe: &str) {
+    pub fn handle_foreground_app(&self, exe: &str) -> bool {
         let mut guard = self.0.lock().unwrap_or_else(|p| p.into_inner());
-        guard.handle_foreground_app(exe);
+        guard.handle_foreground_app(exe)
     }
 
     pub fn reapply_active(&self) {
         let mut guard = self.0.lock().unwrap_or_else(|p| p.into_inner());
         guard.reapply_active();
+    }
+
+    pub fn rescan_and_reapply(&self) -> bool {
+        let mut guard = self.0.lock().unwrap_or_else(|p| p.into_inner());
+        guard.rescan_and_reapply()
+    }
+
+    pub fn check_battery_alerts(&self) -> Vec<String> {
+        let mut guard = self.0.lock().unwrap_or_else(|p| p.into_inner());
+        guard.check_battery_alerts()
+    }
+
+    pub fn tray_summary(&self) -> TraySummary {
+        let mut guard = self.0.lock().unwrap_or_else(|p| p.into_inner());
+        guard.tray_summary()
+    }
+
+    pub fn select_profile_from_tray(&self, name: &str) -> bool {
+        let mut guard = self.0.lock().unwrap_or_else(|p| p.into_inner());
+        let Some(key) = guard.active_key.clone().or_else(|| guard.devices.first().map(Device::key)) else {
+            return false;
+        };
+        guard
+            .execute(BusCommand::SelectProfile {
+                device_key: key,
+                name: name.to_string(),
+            })
+            .is_ok()
+    }
+
+    pub fn is_dark_theme(&self) -> bool {
+        let guard = self.0.lock().unwrap_or_else(|p| p.into_inner());
+        guard.settings.theme != "light"
     }
 }
 
@@ -494,6 +536,20 @@ fn macro_of_action(action: &str) -> Option<u16> {
     action.strip_prefix("macro:")?.split('@').next()?.parse().ok()
 }
 
+fn clean_device_title(name: &str) -> String {
+    let mut s = name.trim();
+    for suffix in [" (Receiver)", " (Wireless)", " (Wired)", " (Dongle)", " (Bluetooth)"] {
+        if let Some(stripped) = s.strip_suffix(suffix) {
+            s = stripped.trim();
+        }
+    }
+    if s.is_empty() {
+        name.to_string()
+    } else {
+        s.to_string()
+    }
+}
+
 impl BusEngine {
     #[cfg(test)]
     pub fn new_with_devices(devices: Vec<Device>, store_path: PathBuf, simulated: bool) -> Self {
@@ -510,6 +566,7 @@ impl BusEngine {
             undo_stacks: BTreeMap::new(),
             redo_stacks: BTreeMap::new(),
             foreground_applied: BTreeMap::new(),
+            low_battery_notified: BTreeMap::new(),
         }
     }
 
@@ -544,15 +601,92 @@ impl BusEngine {
         }
     }
 
-    pub fn handle_foreground_app(&mut self, exe: &str) {
+    pub fn rescan_and_reapply(&mut self) -> bool {
+        let before: Vec<String> = self.devices.iter().map(Device::key).collect();
+        if self.rescan().is_err() {
+            return false;
+        }
+        self.reapply_active();
+        let after: Vec<String> = self.devices.iter().map(Device::key).collect();
+        before != after || !after.is_empty()
+    }
+
+    pub fn check_battery_alerts(&mut self) -> Vec<String> {
+        if !self.settings.battery_warning {
+            self.low_battery_notified.clear();
+            return Vec::new();
+        }
+        let threshold = self.settings.battery_warning_at;
+        let is_ar = self.settings.locale == "ar";
+        let mut fired = Vec::new();
+        for dev in &self.devices {
+            let key = dev.key();
+            let Some(pct) = dev.battery().ok().flatten() else {
+                continue;
+            };
+            let charging = dev.charging().ok().unwrap_or(false);
+            if charging || pct >= threshold.saturating_add(5) {
+                self.low_battery_notified.insert(key, false);
+                continue;
+            }
+            if pct <= threshold && !self.low_battery_notified.get(&key).copied().unwrap_or(false) {
+                self.low_battery_notified.insert(key, true);
+                let msg = if is_ar {
+                    format!("البطارية منخفضة: {pct}%")
+                } else {
+                    format!("Low battery: {pct}%")
+                };
+                win_host::show_osd(&msg);
+                fired.push(msg);
+            }
+        }
+        fired
+    }
+
+    pub fn tray_summary(&mut self) -> TraySummary {
+        let locale = self.settings.locale.clone();
+        if let Ok(idx) = self.find_device(None) {
+            let dev = &self.devices[idx];
+            let title = clean_device_title(&dev.name());
+            let bat = dev.battery().ok().flatten();
+            let dp = self.store.for_device(dev);
+            let active = dp.active.clone();
+            let profiles: Vec<String> = dp.profiles.keys().cloned().collect();
+            let tooltip = match bat {
+                Some(pct) => format!("Grip — {title} · {pct}% · {active}"),
+                None => format!("Grip — {title} · {active}"),
+            };
+            TraySummary {
+                locale,
+                tooltip,
+                active_profile: Some(active),
+                profiles,
+            }
+        } else {
+            let tooltip = if locale == "ar" {
+                "Grip — بانتظار توصيل الماوس".to_string()
+            } else {
+                "Grip — Waiting for mouse".to_string()
+            };
+            TraySummary {
+                locale,
+                tooltip,
+                active_profile: None,
+                profiles: Vec::new(),
+            }
+        }
+    }
+
+    pub fn handle_foreground_app(&mut self, exe: &str) -> bool {
         if !self.settings.auto_switch {
-            return;
+            return false;
         }
         let norm = secbird_core::profile::normalize_app(exe);
         if norm.is_empty() {
-            return;
+            return false;
         }
         let is_ar = self.settings.locale == "ar";
+        let mut changed = false;
         for dev in &self.devices {
             let key = dev.key();
             let dp = self.store.for_device(dev);
@@ -561,6 +695,7 @@ impl BusEngine {
             if want != prev {
                 let _ = dp.apply(&want, dev);
                 self.foreground_applied.insert(key, want.clone());
+                changed = true;
                 if self.settings.popups {
                     let msg = if is_ar {
                         format!("البروفايل: {want}")
@@ -571,6 +706,7 @@ impl BusEngine {
                 }
             }
         }
+        changed
     }
 
     fn find_device(&self, device_key: Option<&str>) -> Result<usize, CommandError> {
@@ -989,6 +1125,11 @@ impl BusEngine {
             }
             BusCommand::UpdateSettings { mut settings } => {
                 settings.battery_warning_at = settings.battery_warning_at.clamp(5, 95);
+                if settings.battery_warning_at != self.settings.battery_warning_at
+                    || settings.battery_warning != self.settings.battery_warning
+                {
+                    self.low_battery_notified.clear();
+                }
                 if settings.autostart != self.settings.autostart {
                     set_autostart(settings.autostart);
                     settings.autostart = crate::settings::autostart_enabled();
@@ -1566,5 +1707,32 @@ mod tests {
             .unwrap_err();
         assert_eq!(err.code, "NO_DEVICE");
         let _ = std::fs::remove_file(empty_path);
+    }
+
+    #[test]
+    fn low_battery_alert_and_tray_summary_work() {
+        let (mut bus, path) = test_bus();
+        let tray = bus.tray_summary();
+        assert!(tray.tooltip.starts_with("Grip — "));
+        assert!(tray.active_profile.is_some());
+
+        let mut high_thresh = AppSettings::default();
+        high_thresh.battery_warning = true;
+        high_thresh.battery_warning_at = 95;
+        let _ = bus.execute(BusCommand::UpdateSettings { settings: high_thresh }).unwrap();
+
+        let first = bus.check_battery_alerts();
+        assert_eq!(first.len(), 1);
+        let second = bus.check_battery_alerts();
+        assert!(second.is_empty());
+
+        let mut low_thresh = AppSettings::default();
+        low_thresh.battery_warning = true;
+        low_thresh.battery_warning_at = 10;
+        let _ = bus.execute(BusCommand::UpdateSettings { settings: low_thresh }).unwrap();
+        assert!(bus.check_battery_alerts().is_empty());
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_file_name("settings.json"));
     }
 }

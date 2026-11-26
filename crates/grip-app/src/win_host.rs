@@ -49,6 +49,7 @@ mod imp {
     use windows_sys::Win32::Foundation::{
         CloseHandle, GetLastError, BOOL, ERROR_ALREADY_EXISTS, HANDLE, HWND, LPARAM, LRESULT, RECT, SIZE, TRUE, WPARAM,
     };
+    use windows_sys::Win32::Graphics::Dwm::DwmSetWindowAttribute;
     use windows_sys::Win32::Graphics::Gdi::{
         BeginPaint, CreateCompatibleDC, CreateDIBSection, CreateFontW, CreateRoundRectRgn, CreateSolidBrush, DeleteDC,
         DeleteObject, DrawTextW, EndPaint, FillRect, GetDC, GetDeviceCaps, InvalidateRect, ReleaseDC, SelectObject,
@@ -67,22 +68,38 @@ mod imp {
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         CreateWindowExW, DefWindowProcW, DestroyIcon, DispatchMessageW, DrawIconEx, EnumWindows, FindWindowW,
         GetClientRect, GetForegroundWindow, GetMessageW, GetWindow, GetWindowTextLengthW, GetWindowThreadProcessId,
-        IsWindowVisible, KillTimer, LoadCursorW, PostThreadMessageW, RegisterClassW, SetForegroundWindow,
-        SetLayeredWindowAttributes, SetTimer, SetWindowPos, ShowWindow, SystemParametersInfoW, TranslateMessage,
-        DI_NORMAL, GW_OWNER, HICON, HTTRANSPARENT, HWND_TOPMOST, IDC_ARROW, LWA_ALPHA, MSG, SPI_GETWORKAREA,
-        SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_HIDE, SW_RESTORE, SW_SHOWNORMAL, WM_APP, WM_NCHITTEST, WM_PAINT,
-        WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
-        WS_POPUP,
+        IsWindowVisible, KillTimer, LoadCursorW, PostMessageW, PostThreadMessageW, RegisterClassW,
+        RegisterWindowMessageW, SetForegroundWindow, SetLayeredWindowAttributes, SetTimer, SetWindowPos, ShowWindow,
+        SystemParametersInfoW, TranslateMessage, DI_NORMAL, GW_OWNER, HICON, HTTRANSPARENT, HWND_TOPMOST, IDC_ARROW,
+        LWA_ALPHA, MSG, SPI_GETWORKAREA, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_HIDE, SW_RESTORE, SW_SHOWNORMAL, WM_APP,
+        WM_NCHITTEST, WM_PAINT, WM_TIMER, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+        WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
     };
 
     const WM_SHOW_OSD: u32 = WM_APP + 21;
+    const WM_DEVICECHANGE: u32 = 0x0219;
+    const DBT_DEVNODES_CHANGED: usize = 0x0007;
+    const WM_POWERBROADCAST: u32 = 0x0218;
+    const PBT_APMRESUMESUSPEND: usize = 0x0007;
+    const PBT_APMRESUMEAUTOMATIC: usize = 0x0012;
     const TIMER_HIDE_OSD: usize = 1;
     const TIMER_FG_SETTLE: usize = 2;
+    const TIMER_HW_REFRESH: usize = 3;
+    const TIMER_BATTERY_TICK: usize = 4;
     const EVENT_SYSTEM_FOREGROUND: u32 = 3;
     const WINEVENT_OUTOFCONTEXT: u32 = 0;
+    const HOST_BRIDGE_CLASS: &str = "GripHostBridge";
+    const SHOW_WINDOW_MSG: &str = "Grip.ShowMainWindow";
 
     fn wide(s: &str) -> Vec<u16> {
         s.encode_utf16().chain(Some(0)).collect()
+    }
+
+    pub struct HostCallbacks {
+        pub on_app: Arc<dyn Fn(String) + Send + Sync + 'static>,
+        pub on_show_window: Arc<dyn Fn() + Send + Sync + 'static>,
+        pub on_hardware_refresh: Arc<dyn Fn() + Send + Sync + 'static>,
+        pub on_battery_tick: Arc<dyn Fn() + Send + Sync + 'static>,
     }
 
     pub struct SingleInstanceGuard(HANDLE);
@@ -100,15 +117,35 @@ mod imp {
         unsafe {
             let handle = CreateMutexW(null(), 0, name.as_ptr());
             if !handle.is_null() && GetLastError() == ERROR_ALREADY_EXISTS {
-                let existing = FindWindowW(null(), wide("Grip").as_ptr());
-                if !existing.is_null() {
-                    ShowWindow(existing, SW_RESTORE);
-                    SetForegroundWindow(existing);
+                let bridge = FindWindowW(wide(HOST_BRIDGE_CLASS).as_ptr(), null());
+                if !bridge.is_null() {
+                    let wm_show = RegisterWindowMessageW(wide(SHOW_WINDOW_MSG).as_ptr());
+                    if wm_show != 0 {
+                        PostMessageW(bridge, wm_show, 0, 0);
+                    }
+                } else {
+                    let existing = FindWindowW(null(), wide("Grip").as_ptr());
+                    if !existing.is_null() {
+                        ShowWindow(existing, SW_RESTORE);
+                        SetForegroundWindow(existing);
+                    }
                 }
                 CloseHandle(handle);
                 return None;
             }
             Some(SingleInstanceGuard(handle))
+        }
+    }
+
+    pub fn set_window_dark_titlebar(hwnd_raw: isize, dark: bool) {
+        if cfg!(test) || hwnd_raw == 0 {
+            return;
+        }
+        let val: i32 = if dark { 1 } else { 0 };
+        unsafe {
+            if DwmSetWindowAttribute(hwnd_raw as HWND, 20, &val as *const i32 as *const c_void, 4) != 0 {
+                let _ = DwmSetWindowAttribute(hwnd_raw as HWND, 19, &val as *const i32 as *const c_void, 4);
+            }
         }
     }
 
@@ -503,23 +540,32 @@ mod imp {
         GetTextExtentPoint32W(dc, text.as_ptr(), text.len() as i32, sz);
     }
 
-    static FG_WATCH_TID: AtomicU32 = AtomicU32::new(0);
-    static FG_WINDOW_HWND: std::sync::atomic::AtomicPtr<std::ffi::c_void> =
+    static HOST_WATCH_TID: AtomicU32 = AtomicU32::new(0);
+    static HOST_WINDOW_HWND: std::sync::atomic::AtomicPtr<std::ffi::c_void> =
         std::sync::atomic::AtomicPtr::new(null_mut());
 
-    pub fn start_foreground_watcher(on_app: Arc<dyn Fn(String) + Send + Sync + 'static>) {
-        if FG_WATCH_TID.load(Ordering::Relaxed) != 0 {
+    thread_local! {
+        static HOST_CALLBACKS: RefCell<Option<HostCallbacks>> = const { RefCell::new(None) };
+        static WM_SHOW_MAIN: Cell<u32> = const { Cell::new(0) };
+    }
+
+    pub fn start_host_monitor(callbacks: HostCallbacks) {
+        if HOST_WATCH_TID.load(Ordering::Relaxed) != 0 {
             return;
         }
         let _ = std::thread::Builder::new()
-            .name("grip-fg-watcher".into())
+            .name("grip-host-monitor".into())
             .spawn(move || unsafe {
                 let tid = GetCurrentThreadId();
-                FG_WATCH_TID.store(tid, Ordering::Relaxed);
+                HOST_WATCH_TID.store(tid, Ordering::Relaxed);
+                let show_msg = RegisterWindowMessageW(wide(SHOW_WINDOW_MSG).as_ptr());
+                WM_SHOW_MAIN.with(|m| m.set(show_msg));
+                HOST_CALLBACKS.with(|c| *c.borrow_mut() = Some(callbacks));
+
                 let hinst = GetModuleHandleW(null());
-                let cls = wide("GripFgWatcher");
+                let cls = wide(HOST_BRIDGE_CLASS);
                 let wc = WNDCLASSW {
-                    lpfnWndProc: Some(fg_wndproc),
+                    lpfnWndProc: Some(host_wndproc),
                     hInstance: hinst,
                     lpszClassName: cls.as_ptr(),
                     ..zeroed()
@@ -528,7 +574,7 @@ mod imp {
                 let hwnd = CreateWindowExW(
                     0,
                     cls.as_ptr(),
-                    wide("GripFgWatcher").as_ptr(),
+                    wide(HOST_BRIDGE_CLASS).as_ptr(),
                     0,
                     0,
                     0,
@@ -542,7 +588,7 @@ mod imp {
                 if hwnd.is_null() {
                     return;
                 }
-                FG_WINDOW_HWND.store(hwnd, Ordering::Relaxed);
+                HOST_WINDOW_HWND.store(hwnd, Ordering::Relaxed);
                 let _hook = SetWinEventHook(
                     EVENT_SYSTEM_FOREGROUND,
                     EVENT_SYSTEM_FOREGROUND,
@@ -552,18 +598,46 @@ mod imp {
                     0,
                     WINEVENT_OUTOFCONTEXT,
                 );
+                SetTimer(hwnd, TIMER_BATTERY_TICK, 60_000, None);
+
                 let mut msg: MSG = zeroed();
                 let mut last_exe = String::new();
                 while GetMessageW(&mut msg, null_mut(), 0, 0) > 0 {
-                    if msg.hwnd == hwnd && msg.message == WM_TIMER && msg.wParam == TIMER_FG_SETTLE {
-                        KillTimer(hwnd, TIMER_FG_SETTLE);
-                        if let Some((exe, _)) = exe_of(GetForegroundWindow()) {
-                            if exe != last_exe {
-                                last_exe = exe.clone();
-                                on_app(exe);
+                    if msg.hwnd == hwnd && msg.message == WM_TIMER {
+                        match msg.wParam {
+                            TIMER_FG_SETTLE => {
+                                KillTimer(hwnd, TIMER_FG_SETTLE);
+                                if let Some((exe, _)) = exe_of(GetForegroundWindow()) {
+                                    if exe != last_exe {
+                                        last_exe = exe.clone();
+                                        HOST_CALLBACKS.with(|c| {
+                                            if let Some(cb) = c.borrow().as_ref() {
+                                                (cb.on_app)(exe.clone());
+                                            }
+                                        });
+                                    }
+                                }
+                                continue;
                             }
+                            TIMER_HW_REFRESH => {
+                                KillTimer(hwnd, TIMER_HW_REFRESH);
+                                HOST_CALLBACKS.with(|c| {
+                                    if let Some(cb) = c.borrow().as_ref() {
+                                        (cb.on_hardware_refresh)();
+                                    }
+                                });
+                                continue;
+                            }
+                            TIMER_BATTERY_TICK => {
+                                HOST_CALLBACKS.with(|c| {
+                                    if let Some(cb) = c.borrow().as_ref() {
+                                        (cb.on_battery_tick)();
+                                    }
+                                });
+                                continue;
+                            }
+                            _ => {}
                         }
-                        continue;
                     }
                     TranslateMessage(&msg);
                     DispatchMessageW(&msg);
@@ -571,7 +645,22 @@ mod imp {
             });
     }
 
-    unsafe extern "system" fn fg_wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    unsafe extern "system" fn host_wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+        let show_msg = WM_SHOW_MAIN.with(Cell::get);
+        if show_msg != 0 && msg == show_msg {
+            HOST_CALLBACKS.with(|c| {
+                if let Some(cb) = c.borrow().as_ref() {
+                    (cb.on_show_window)();
+                }
+            });
+            return 0;
+        }
+        if (msg == WM_DEVICECHANGE && wparam == DBT_DEVNODES_CHANGED)
+            || (msg == WM_POWERBROADCAST && (wparam == PBT_APMRESUMESUSPEND || wparam == PBT_APMRESUMEAUTOMATIC))
+        {
+            SetTimer(hwnd, TIMER_HW_REFRESH, 1200, None);
+            return 0;
+        }
         DefWindowProcW(hwnd, msg, wparam, lparam)
     }
 
@@ -584,7 +673,7 @@ mod imp {
         _: u32,
         _: u32,
     ) {
-        let hwnd = FG_WINDOW_HWND.load(Ordering::Relaxed);
+        let hwnd = HOST_WINDOW_HWND.load(Ordering::Relaxed);
         if !hwnd.is_null() {
             SetTimer(hwnd, TIMER_FG_SETTLE, 280, None);
         }
@@ -599,6 +688,13 @@ mod imp {
 
     pub struct SingleInstanceGuard;
 
+    pub struct HostCallbacks {
+        pub on_app: Arc<dyn Fn(String) + Send + Sync + 'static>,
+        pub on_show_window: Arc<dyn Fn() + Send + Sync + 'static>,
+        pub on_hardware_refresh: Arc<dyn Fn() + Send + Sync + 'static>,
+        pub on_battery_tick: Arc<dyn Fn() + Send + Sync + 'static>,
+    }
+
     pub fn acquire_single_instance() -> Option<SingleInstanceGuard> {
         Some(SingleInstanceGuard)
     }
@@ -611,10 +707,15 @@ mod imp {
 
     pub fn show_osd(_text: &str) {}
 
-    pub fn start_foreground_watcher(_on_app: Arc<dyn Fn(String) + Send + Sync + 'static>) {}
+    pub fn set_window_dark_titlebar(_hwnd_raw: isize, _dark: bool) {}
+
+    pub fn start_host_monitor(_callbacks: HostCallbacks) {}
 }
 
-pub use imp::{acquire_single_instance, open_folder, running_apps, show_osd, start_foreground_watcher};
+pub use imp::{
+    acquire_single_instance, open_folder, running_apps, set_window_dark_titlebar, show_osd, start_host_monitor,
+    HostCallbacks,
+};
 
 #[cfg(test)]
 mod tests {

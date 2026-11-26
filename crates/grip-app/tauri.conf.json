@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Grip",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "identifier": "com.ameliiom.grip",
   "build": {
     "frontendDist": "../../ui/dist",
@@ -16,7 +16,9 @@
         "height": 820,
         "minWidth": 360,
         "minHeight": 540,
-        "resizable": true
+        "resizable": true,
+        "visible": false,
+        "backgroundColor": "#09090b"
       }
     ],
     "security": {
@@ -26,6 +28,8 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "shortDescription": "Lightweight studio for Razer mice and peripherals",
+    "publisher": "ameliiom",
     "icon": [
       "icons/icon.ico",
       "icons/icon.png"

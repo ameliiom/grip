@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <rect x="10" y="10" width="236" height="236" rx="56" fill="#111116" stroke="#2c2c35" stroke-width="5" />
+  <path
+    d="M84 56 C96 42, 114 37, 130 37 C148 37, 168 42, 180 54 C190 66, 193 92, 196 122 C202 150, 196 184, 184 202 C170 218, 150 222, 128 222 C104 222, 84 214, 72 198 C60 180, 58 148, 60 118 C62 88, 70 70, 84 56 Z"
+    fill="#1c1c22"
+    stroke="#f4f4f6"
+    stroke-width="8"
+    stroke-linejoin="round"
+  />
+  <path d="M98 118 L158 118" stroke="#3f3f4c" stroke-width="5" stroke-linecap="round" />
+  <line x1="128" y1="40" x2="128" y2="118" stroke="#3f3f4c" stroke-width="5" stroke-linecap="round" />
+  <rect x="118" y="54" width="20" height="44" rx="10" fill="#d4af37" />
+  <rect x="46" y="106" width="16" height="20" rx="5" fill="#d4af37" />
+  <rect x="46" y="132" width="16" height="20" rx="5" fill="#d4af37" />
+  <rect x="46" y="158" width="16" height="20" rx="5" fill="#d4af37" />
+</svg>

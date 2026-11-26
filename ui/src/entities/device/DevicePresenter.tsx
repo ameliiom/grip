@@ -1,8 +1,9 @@
-import { Battery, BatteryCharging, ChevronDown, Mouse } from "lucide-react";
+import { Battery, BatteryCharging, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import type { DeviceSnapshot, DeviceSummary } from "../../acl/transport";
 import { Button, ChoiceChips, Popover, Stack } from "../../design-system/primitives";
 import { cleanDeviceDisplayName, type Vocab } from "../../i18n/vocab";
+import { GripMark } from "../brand/GripMark";
 
 export function DeviceIdentityBar({
   appName,
@@ -34,8 +35,8 @@ export function DeviceIdentityBar({
 
   const core = (
     <div className="inline-flex items-center gap-2 min-w-0 shrink-0">
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] bg-[var(--surface-2)] text-[var(--fg)] shrink-0">
-        <Mouse size={17} strokeWidth={2} />
+      <span className="inline-flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] shrink-0">
+        <GripMark size={28} />
       </span>
       <span className="text-base font-bold tracking-tight whitespace-nowrap shrink-0">{appName}</span>
       {device ? (

@@ -564,6 +564,15 @@ export interface Vocab {
   noDevicesTitle: string;
   noDevicesBody: string;
   rescan: string;
+  loadingTitle: string;
+  loadingBody: string;
+  confirmRestoreAllTitle: string;
+  confirmRestoreFactoryTitle: string;
+  confirmYes: string;
+  toastSavedOnboard: string;
+  toastRestoredAll: string;
+  toastRestoredFactory: string;
+  toastImportedProfiles: string;
 }
 
 export const VOCAB: Record<Locale, Vocab> = {
@@ -718,6 +727,15 @@ export const VOCAB: Record<Locale, Vocab> = {
     noDevicesTitle: "لم يتم العثور على الماوس",
     noDevicesBody: "تأكد من توصيل قطعة الاستقبال اللاسلكي أو الكابل ثم اضغط إعادة الفحص.",
     rescan: "إعادة الفحص",
+    loadingTitle: "جاري تشغيل Grip...",
+    loadingBody: "نقرأ الآن إعدادات الماوس والبروفايلات المحفوظة.",
+    confirmRestoreAllTitle: "هل تريد استرجاع جميع الأزرار للوضع الافتراضي؟",
+    confirmRestoreFactoryTitle: "هل تريد استرجاع إعداد المصنع لذاكرة الماوس؟",
+    confirmYes: "تأكيد الاسترجاع",
+    toastSavedOnboard: "تم الحفظ في ذاكرة الماوس بنجاح",
+    toastRestoredAll: "تم استرجاع جميع الأزرار للوضع الافتراضي",
+    toastRestoredFactory: "تم استرجاع إعداد المصنع للذاكرة",
+    toastImportedProfiles: "تم استيراد النسخة الاحتياطية بنجاح",
   },
   en: {
     appName: "Grip",
@@ -870,5 +888,14 @@ export const VOCAB: Record<Locale, Vocab> = {
     noDevicesTitle: "Mouse not detected",
     noDevicesBody: "Check the wireless receiver or cable and scan again.",
     rescan: "Scan again",
+    loadingTitle: "Starting Grip...",
+    loadingBody: "Reading connected hardware and saved profiles.",
+    confirmRestoreAllTitle: "Restore all buttons to defaults?",
+    confirmRestoreFactoryTitle: "Restore factory defaults on mouse memory?",
+    confirmYes: "Confirm restore",
+    toastSavedOnboard: "Saved to mouse memory",
+    toastRestoredAll: "All buttons restored to defaults",
+    toastRestoredFactory: "Factory memory defaults restored",
+    toastImportedProfiles: "Profiles imported successfully",
   },
 };

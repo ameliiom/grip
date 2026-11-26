@@ -1,6 +1,6 @@
 [package]
 name = "grip-app"
-description = "Grip: Rust + Tauri desktop controller for Razer peripherals"
+description = "Grip: Lightweight desktop studio for Razer gaming mice and peripherals"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -24,6 +24,7 @@ tauri = { version = "2.12.7", features = ["tray-icon"] }
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
+    "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",
     "Win32_Storage_FileSystem",
     "Win32_System_LibraryLoader",

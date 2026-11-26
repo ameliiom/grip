@@ -140,7 +140,7 @@ pub fn set_autostart(enabled: bool) {
         }
         if enabled {
             if let Ok(exe) = std::env::current_exe() {
-                let cmd = format!("\"{}\"", exe.display());
+                let cmd = format!("\"{}\" --tray", exe.display());
                 let wide: Vec<u16> = cmd.encode_utf16().chain(Some(0)).collect();
                 let bytes = (wide.len() * 2) as u32;
                 let _ = RegSetValueExW(key, val_name.as_ptr(), 0, REG_SZ, wide.as_ptr() as *const u8, bytes);

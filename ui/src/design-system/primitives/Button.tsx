@@ -63,7 +63,7 @@ export function Button({
       type={type}
       data-variant={variant === "primary" ? "primary" : undefined}
       data-active={active ? "true" : undefined}
-      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] font-medium grip-transition grip-focus cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed shrink-0 ${iconOnly ? ICON_SIZE_CLS[size] : tall ? "min-h-[72px] px-4 py-3 text-sm" : SIZE_CLS[size]} ${tone} ${fullWidth ? "w-full min-w-0" : ""}`}
+      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-md)] font-medium grip-transition grip-focus cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed shrink-0 ${iconOnly ? ICON_SIZE_CLS[size] : tall ? "min-h-[56px] px-4 py-2.5 text-sm" : SIZE_CLS[size]} ${tone} ${fullWidth ? "w-full min-w-0" : ""}`}
       {...rest}
     >
       {children}

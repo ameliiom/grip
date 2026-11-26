@@ -147,7 +147,7 @@ export function PerformanceView({
                       onClick={() => onSelectDpiStage(idx + 1)}
                       ariaLabel={`${vocab.speedStagesTitle} ${idx + 1}: ${label} ${vocab.speedUnit}`}
                     >
-                      <span className="w-full h-24 sm:h-40 rounded-[var(--radius-sm)] bg-[var(--surface-2)] flex items-end p-1.5 overflow-hidden">
+                      <span className="w-full h-24 sm:h-[clamp(96px,18vh,160px)] rounded-[var(--radius-sm)] bg-[var(--surface-2)] flex items-end p-1.5 overflow-hidden">
                         <span
                           className={`w-full rounded-[4px] grip-transition ${
                             isActive ? "bg-[var(--brand)]" : "bg-[var(--fg-muted)] opacity-55"

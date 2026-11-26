@@ -34,6 +34,13 @@ export default async function audit(b) {
       if (document.documentElement.scrollWidth > docW + 2) {
         issues.push('horizontal-overflow:' + document.documentElement.scrollWidth + '>' + docW);
       }
+      const rootGutter = getComputedStyle(document.documentElement).scrollbarGutter || '';
+      if (rootGutter.includes('stable')) {
+        issues.push('ugly-scrollbar-gutter:' + rootGutter);
+      }
+      if (${w} >= 1024 && document.querySelector('[data-fit-viewport="true"]') && document.documentElement.scrollHeight > window.innerHeight + 2) {
+        issues.push('spurious-vertical-overflow:' + document.documentElement.scrollHeight + '>' + window.innerHeight);
+      }
       if (/[\\u0660-\\u0669]/.test(document.body.innerText || '')) {
         issues.push('arabic-indic-digits-rendered');
       }
@@ -438,13 +445,18 @@ export default async function audit(b) {
     }
   }
 
-  // Interactive Layout Shift probe (top-bar nav lock across views + card stability across intra-view toggles)
+  // Interactive Layout Shift + Realistic Desktop (1280x780) Zero-Spurious-Scroll probe
   await b.colorScheme(THEMES[THEMES.length - 1] || "dark");
-  await b.viewport(1366, 900, false);
+  await b.viewport(1280, 780, false);
   await b.eval("window.scrollTo(0, 0); new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
   const shiftIssues = await b.eval(`(async () => {
     const out = [];
     const waitRaf = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const checkViewportOverflow = (tag) => {
+      if (document.querySelector('[data-fit-viewport="true"]') && document.documentElement.scrollHeight > window.innerHeight + 2) {
+        out.push('spurious-vertical-overflow@1280x780:' + tag + ':' + document.documentElement.scrollHeight + '>' + window.innerHeight);
+      }
+    };
     const snapNav = () => {
       const el = document.querySelector('[data-shift-probe="nav"]') || document.querySelector('header nav');
       if (!el) return null;
@@ -458,6 +470,7 @@ export default async function audit(b) {
       })
       .filter((f) => f.w > 0 && f.h > 0);
 
+    checkViewportOverflow('initial');
     const baseNav = snapNav();
     const navButtons = [...document.querySelectorAll('[data-shift-probe="nav"] button, header nav button')].filter((el) => {
       const r = el.getBoundingClientRect();
@@ -468,6 +481,7 @@ export default async function audit(b) {
       if (btn === firstNav) continue;
       btn.click();
       await waitRaf();
+      checkViewportOverflow((btn.innerText || '').trim());
       const curNav = snapNav();
       if (baseNav && curNav) {
         const dx = Math.abs(curNav.cx - baseNav.cx);
@@ -488,11 +502,12 @@ export default async function audit(b) {
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && !el.disabled && el.getAttribute('data-active') !== 'true' && el.getAttribute('aria-pressed') !== 'true';
       })
-      .slice(0, 8);
+      .slice(0, 10);
     for (const btn of intraButtons) {
       const label = (btn.innerText || btn.getAttribute('aria-label') || '').trim().slice(0, 20);
       btn.click();
       await waitRaf();
+      checkViewportOverflow(label);
       const curNav = snapNav();
       if (baseNav && curNav && (Math.abs(curNav.cx - baseNav.cx) > 2 || Math.abs(curNav.cy - baseNav.cy) > 2)) {
         out.push('nav-shift-on-click:' + label);

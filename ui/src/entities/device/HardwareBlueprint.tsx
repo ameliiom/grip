@@ -212,12 +212,12 @@ export function HardwareBlueprint({
       : (BUTTON_LABELS[locale][id] ?? id);
 
   return (
-    <div className="rounded-[var(--radius-md)] bg-[var(--hw-canvas)] p-4 sm:p-5 flex-1 min-h-[320px] sm:min-h-[clamp(440px,calc(100vh-250px),680px)] flex flex-col justify-between">
+    <div className="rounded-[var(--radius-md)] bg-[var(--hw-canvas)] p-4 sm:p-5 flex-1 min-h-[280px] sm:min-h-0 flex flex-col justify-between">
       {view === "side" ? (
         <div className="flex-1 flex flex-col justify-between gap-4 min-h-0">
-          {/* Orthographic Left Side Locator SVG (fluidly fills available canvas height) */}
-          <div className="w-full max-w-[clamp(520px,54vw,760px)] self-center flex-1 flex items-center justify-center" dir="ltr">
-            <svg viewBox={side.viewBox} className="w-full h-auto select-none block">
+          {/* Orthographic Left Side Locator SVG (fluidly scales inside viewport height without overflow) */}
+          <div className="w-full max-w-[clamp(460px,52vw,720px)] max-h-[clamp(220px,36vh,350px)] self-center flex-1 flex items-center justify-center" dir="ltr">
+            <svg viewBox={side.viewBox} className="w-full h-full max-h-full select-none block">
               {side.skates.map(([x1, y1, x2, y2], idx) => (
                 <line
                   key={idx}

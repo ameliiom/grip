@@ -17,7 +17,6 @@ import {
   Button,
   ChoiceChips,
   Slider,
-  Stack,
 } from "../../design-system/primitives";
 import { BUTTON_LABELS, computeErgonomicStops, formatHumanAction, parseAction, type Locale, type Vocab } from "../../i18n/vocab";
 
@@ -355,8 +354,8 @@ export function ActionInspector({
   const keyTokens = parsed.kind === "key" ? formatHumanAction(currentAction, locale, macros).split(" + ") : null;
 
   return (
-    <div className="flex flex-col justify-between h-full min-h-0 gap-4" data-inspector="true">
-      <div className="flex-1 min-h-0 flex flex-col gap-4">
+    <div className="flex flex-col justify-between h-full min-h-0 gap-3" data-inspector="true">
+      <div className="flex-1 min-h-0 flex flex-col gap-3">
         {/* Single fixed-height header: button name + inline state dot + keycap/action preview (0px vertical shift) */}
         <div className="min-h-[40px] flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -402,279 +401,277 @@ export function ActionInspector({
             <p className="text-sm text-[var(--fg-muted)]">{vocab.protectedBody}</p>
           </div>
         ) : (
-          <Stack gap="4" className="flex-1 min-h-0 justify-between">
-            <Stack gap="4">
-              {/* Tier 1: Category Switcher inside Recessed Track */}
-              <ChoiceChips
-                ariaLabel={buttonName}
-                variant="tabs"
-                tier="tabs"
-                value={category}
-                columns={3}
-                onChange={(next) => {
-                  setRecordMode("off");
-                  soloModifierRef.current = null;
-                  setCategory(next);
-                }}
-                options={categories}
-                size="sm"
-              />
+          <div className="flex-1 min-h-0 flex flex-col gap-3">
+            {/* Tier 1: Category Switcher inside Recessed Track */}
+            <ChoiceChips
+              ariaLabel={buttonName}
+              variant="tabs"
+              tier="tabs"
+              value={category}
+              columns={3}
+              onChange={(next) => {
+                setRecordMode("off");
+                soloModifierRef.current = null;
+                setCategory(next);
+              }}
+              options={categories}
+              size="sm"
+            />
 
-              {category === "keys" ? (
-                <Stack gap="4">
-                  {/* Tier 2: Elevated Interactive Capture Stage */}
-                  <div
-                    data-control-tier="stage"
-                    className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-[var(--radius-md)] p-4 flex flex-col gap-3"
+            {category === "keys" ? (
+              <div className="flex flex-col gap-3">
+                {/* Tier 2: Elevated Interactive Capture Stage */}
+                <div
+                  data-control-tier="stage"
+                  className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-[var(--radius-md)] p-3 flex flex-col gap-2"
+                >
+                  <span className="text-xs text-[var(--fg-muted)]">{vocab.keyCaptureHint}</span>
+                  <Button
+                    variant="secondary"
+                    tall={true}
+                    dashed={recordMode !== "keys"}
+                    fullWidth={true}
+                    active={recordMode === "keys"}
+                    onClick={() => {
+                      soloModifierRef.current = null;
+                      setRecordMode((m) => (m === "keys" ? "off" : "keys"));
+                    }}
                   >
-                    <span className="text-xs text-[var(--fg-muted)]">{vocab.keyCaptureHint}</span>
-                    <Button
-                      variant="secondary"
-                      tall={true}
-                      dashed={recordMode !== "keys"}
-                      fullWidth={true}
-                      active={recordMode === "keys"}
-                      onClick={() => {
-                        soloModifierRef.current = null;
-                        setRecordMode((m) => (m === "keys" ? "off" : "keys"));
-                      }}
-                    >
-                      <Keyboard size={17} strokeWidth={2} />
-                      <span>{recordMode === "keys" ? vocab.recordingCancelHint : vocab.pressAnyKey}</span>
-                    </Button>
-                  </div>
+                    <Keyboard size={17} strokeWidth={2} />
+                    <span>{recordMode === "keys" ? vocab.recordingCancelHint : vocab.pressAnyKey}</span>
+                  </Button>
+                </div>
 
-                  {/* Tier 3: Borderless Soft Preset Pills */}
-                  <div className="pt-3 border-t border-[var(--border)] flex flex-col gap-2">
-                    <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.modifiersLabel}</span>
-                    <ChoiceChips
-                      ariaLabel={vocab.modifiersLabel}
-                      variant="pills"
-                      tier="presets"
-                      value={currentAction}
-                      onChange={onAssign}
-                      size="sm"
-                      columns={4}
-                      options={STANDALONE_MODIFIERS}
-                    />
-                    <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.quickPresetsLabel}</span>
-                    {renderPresets(KEY_PRESETS)}
-                  </div>
-                </Stack>
-              ) : null}
-
-              {category === "windows" ? (
-                <div className="pt-1 flex flex-col gap-2">
-                  <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.quickPresetsLabel}</span>
+                {/* Tier 3: Borderless Soft Preset Pills */}
+                <div className="pt-2 border-t border-[var(--border)] flex flex-col gap-2">
+                  <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.modifiersLabel}</span>
                   <ChoiceChips
-                    ariaLabel={vocab.categories.windows}
+                    ariaLabel={vocab.modifiersLabel}
                     variant="pills"
                     tier="presets"
                     value={currentAction}
                     onChange={onAssign}
                     size="sm"
+                    columns={4}
+                    options={STANDALONE_MODIFIERS}
+                  />
+                  <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.quickPresetsLabel}</span>
+                  {renderPresets(KEY_PRESETS)}
+                </div>
+              </div>
+            ) : null}
+
+            {category === "windows" ? (
+              <div className="pt-1 flex flex-col gap-2">
+                <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.quickPresetsLabel}</span>
+                <ChoiceChips
+                  ariaLabel={vocab.categories.windows}
+                  variant="pills"
+                  tier="presets"
+                  value={currentAction}
+                  onChange={onAssign}
+                  size="sm"
+                  columns={3}
+                  options={WINDOWS_PRESETS.map((w) => ({
+                    value: w.value,
+                    label: locale === "ar" ? w.ar : w.en,
+                  }))}
+                />
+              </div>
+            ) : null}
+
+            {category === "mouse" ? (
+              <div className="pt-1 flex flex-col gap-2">
+                <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.quickPresetsLabel}</span>
+                {renderPresets(MOUSE_PRESETS)}
+              </div>
+            ) : null}
+
+            {category === "turbo" ? (
+              <div className="flex flex-col gap-3">
+                {/* Tier 2: Turbo Interactive Configuration Well */}
+                <div
+                  data-control-tier="stage"
+                  className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-[var(--radius-md)] p-3 flex flex-col gap-2.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.turboTargetLabel}</span>
+                    <Badge tone="active">{formatHumanAction(turboTarget, locale, macros, true)}</Badge>
+                  </div>
+
+                  <Button
+                    variant="secondary"
+                    dashed={recordMode !== "turbo"}
+                    fullWidth={true}
+                    active={recordMode === "turbo"}
+                    onClick={() => {
+                      soloModifierRef.current = null;
+                      setRecordMode((m) => (m === "turbo" ? "off" : "turbo"));
+                    }}
+                  >
+                    <Keyboard size={15} strokeWidth={2} />
+                    <span>{recordMode === "turbo" ? vocab.recordingCancelHint : vocab.turboCaptureKey}</span>
+                  </Button>
+
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.turboRateLabel}</span>
+                      <span className="text-xs font-bold tabular-nums">
+                        {turboRate} {vocab.perSecond}
+                      </span>
+                    </div>
+                    <Slider
+                      ariaLabel={vocab.turboRateLabel}
+                      min={1}
+                      max={50}
+                      step={1}
+                      value={turboRate}
+                      onChange={setTurboRate}
+                    />
+                  </div>
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    fullWidth={true}
+                    onClick={() => onAssign(`turbo:${turboTarget}@${turboRate}`)}
+                  >
+                    <Zap size={15} strokeWidth={2} />
+                    <span>{vocab.applyTurbo}</span>
+                  </Button>
+                </div>
+
+                {/* Tier 3: Mouse Target Presets */}
+                <div className="pt-2 border-t border-[var(--border)] flex flex-col gap-2">
+                  <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.quickPresetsLabel}</span>
+                  <ChoiceChips
+                    ariaLabel={vocab.turboTargetLabel}
+                    variant="pills"
+                    tier="presets"
+                    size="sm"
                     columns={3}
-                    options={WINDOWS_PRESETS.map((w) => ({
-                      value: w.value,
-                      label: locale === "ar" ? w.ar : w.en,
+                    value={turboTarget}
+                    onChange={(nextTarget) => {
+                      setTurboTarget(nextTarget);
+                      onAssign(`turbo:${nextTarget}@${turboRate}`);
+                    }}
+                    options={TURBO_MOUSE_TARGETS.map((t) => ({
+                      value: t,
+                      label: formatHumanAction(t, locale, macros),
                     }))}
                   />
                 </div>
-              ) : null}
+              </div>
+            ) : null}
 
-              {category === "mouse" ? (
-                <div className="pt-1 flex flex-col gap-2">
-                  <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.quickPresetsLabel}</span>
-                  {renderPresets(MOUSE_PRESETS)}
+            {category === "speed" ? (
+              <div className="flex flex-col gap-3">
+                {/* Tier 2: Precision Clutch Slider Stage */}
+                <div
+                  data-control-tier="stage"
+                  className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-[var(--radius-md)] p-3 flex flex-col gap-2.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.clutchLabel}</span>
+                    <bdi dir="ltr" className="text-xs font-bold tabular-nums">
+                      {clutchDpi} {vocab.speedUnit}
+                    </bdi>
+                  </div>
+                  <Slider
+                    ariaLabel={vocab.clutchLabel}
+                    min={dpiMin}
+                    max={dpiMax}
+                    step={dpiStep}
+                    stops={computeErgonomicStops(dpiMin, dpiMax, dpiStep)}
+                    value={clutchDpi}
+                    onChange={setClutchDpi}
+                  />
+                  <Button variant="secondary" size="sm" onClick={() => onAssign(`dpi-clutch:${clutchDpi}`)}>
+                    {vocab.applyClutch}
+                  </Button>
                 </div>
-              ) : null}
 
-              {category === "turbo" ? (
-                <Stack gap="4">
-                  {/* Tier 2: Turbo Interactive Configuration Well */}
-                  <div
-                    data-control-tier="stage"
-                    className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-[var(--radius-md)] p-4 flex flex-col gap-3"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.turboTargetLabel}</span>
-                      <Badge tone="active">{formatHumanAction(turboTarget, locale, macros, true)}</Badge>
-                    </div>
+                {/* Tier 3: Speed, Profile & Single-Row Onboard Memory Slots */}
+                <div className="pt-2 border-t border-[var(--border)] flex flex-col gap-2">
+                  <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.profileActionsLabel}</span>
+                  {renderPresets(speedPresets)}
+                  <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.onboardSlotsLabel}</span>
+                  <ChoiceChips
+                    ariaLabel={vocab.onboardSlotsLabel}
+                    variant="pills"
+                    tier="presets"
+                    value={currentAction}
+                    onChange={onAssign}
+                    size="sm"
+                    columns={5}
+                    options={ONBOARD_SLOT_PRESETS.map((action, idx) => ({
+                      value: action,
+                      label: String(idx + 1),
+                    }))}
+                  />
+                </div>
+              </div>
+            ) : null}
 
-                    <Button
-                      variant="secondary"
-                      dashed={recordMode !== "turbo"}
-                      fullWidth={true}
-                      active={recordMode === "turbo"}
-                      onClick={() => {
-                        soloModifierRef.current = null;
-                        setRecordMode((m) => (m === "turbo" ? "off" : "turbo"));
-                      }}
-                    >
-                      <Keyboard size={15} strokeWidth={2} />
-                      <span>{recordMode === "turbo" ? vocab.recordingCancelHint : vocab.turboCaptureKey}</span>
-                    </Button>
+            {category === "media" ? (
+              <div className="pt-1 flex flex-col gap-2">
+                <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.quickPresetsLabel}</span>
+                {renderPresets(MEDIA_PRESETS)}
+              </div>
+            ) : null}
 
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.turboRateLabel}</span>
-                        <span className="text-xs font-bold tabular-nums">
-                          {turboRate} {vocab.perSecond}
-                        </span>
-                      </div>
-                      <Slider
-                        ariaLabel={vocab.turboRateLabel}
-                        min={1}
-                        max={50}
-                        step={1}
-                        value={turboRate}
-                        onChange={setTurboRate}
-                      />
-                    </div>
-
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      fullWidth={true}
-                      onClick={() => onAssign(`turbo:${turboTarget}@${turboRate}`)}
-                    >
-                      <Zap size={15} strokeWidth={2} />
-                      <span>{vocab.applyTurbo}</span>
-                    </Button>
-                  </div>
-
-                  {/* Tier 3: Mouse Target Presets */}
-                  <div className="pt-3 border-t border-[var(--border)] flex flex-col gap-2">
-                    <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.quickPresetsLabel}</span>
+            {category === "macros" ? (
+              <div className="flex flex-col gap-3">
+                <div
+                  data-control-tier="stage"
+                  className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-[var(--radius-md)] p-3 flex flex-col gap-2.5"
+                >
+                  <ChoiceChips
+                    ariaLabel={vocab.categories.macros}
+                    variant="cards"
+                    size="sm"
+                    value={macroMode}
+                    onChange={setMacroMode}
+                    options={[
+                      { value: "once" as const, label: locale === "ar" ? "تشغيل مرة" : "Play once" },
+                      { value: "hold" as const, label: locale === "ar" ? "تكرار عند الضغط" : "Repeat while held" },
+                      { value: "toggle" as const, label: locale === "ar" ? "تشغيل / إيقاف" : "Toggle repeat" },
+                    ]}
+                  />
+                </div>
+                <div className="pt-2 border-t border-[var(--border)] flex flex-col gap-2">
+                  {macros.length > 0 ? (
                     <ChoiceChips
-                      ariaLabel={vocab.turboTargetLabel}
-                      variant="pills"
-                      tier="presets"
-                      size="sm"
-                      columns={3}
-                      value={turboTarget}
-                      onChange={(nextTarget) => {
-                        setTurboTarget(nextTarget);
-                        onAssign(`turbo:${nextTarget}@${turboRate}`);
-                      }}
-                      options={TURBO_MOUSE_TARGETS.map((t) => ({
-                        value: t,
-                        label: formatHumanAction(t, locale, macros),
-                      }))}
-                    />
-                  </div>
-                </Stack>
-              ) : null}
-
-              {category === "speed" ? (
-                <Stack gap="4">
-                  {/* Tier 2: Precision Clutch Slider Stage */}
-                  <div
-                    data-control-tier="stage"
-                    className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-[var(--radius-md)] p-4 flex flex-col gap-3"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.clutchLabel}</span>
-                      <bdi dir="ltr" className="text-xs font-bold tabular-nums">
-                        {clutchDpi} {vocab.speedUnit}
-                      </bdi>
-                    </div>
-                    <Slider
-                      ariaLabel={vocab.clutchLabel}
-                      min={dpiMin}
-                      max={dpiMax}
-                      step={dpiStep}
-                      stops={computeErgonomicStops(dpiMin, dpiMax, dpiStep)}
-                      value={clutchDpi}
-                      onChange={setClutchDpi}
-                    />
-                    <Button variant="secondary" size="sm" onClick={() => onAssign(`dpi-clutch:${clutchDpi}`)}>
-                      {vocab.applyClutch}
-                    </Button>
-                  </div>
-
-                  {/* Tier 3: Speed, Profile & Scroll Presets */}
-                  <div className="pt-3 border-t border-[var(--border)] flex flex-col gap-2">
-                    <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.profileActionsLabel}</span>
-                    {renderPresets(speedPresets)}
-                    <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.onboardSlotsLabel}</span>
-                    <ChoiceChips
-                      ariaLabel={vocab.onboardSlotsLabel}
+                      ariaLabel={vocab.navMacros}
                       variant="pills"
                       tier="presets"
                       value={currentAction}
                       onChange={onAssign}
                       size="sm"
-                      columns={3}
-                      options={ONBOARD_SLOT_PRESETS.map((action) => ({
-                        value: action,
-                        label: formatHumanAction(action, locale, macros, true),
+                      options={macros.map((m) => ({
+                        value: macroMode === "once" ? `macro:${m.id}` : `macro:${m.id}@${macroMode}`,
+                        label: m.name,
                       }))}
                     />
-                  </div>
-                </Stack>
-              ) : null}
-
-              {category === "media" ? (
-                <div className="pt-1 flex flex-col gap-2">
-                  <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.quickPresetsLabel}</span>
-                  {renderPresets(MEDIA_PRESETS)}
+                  ) : (
+                    <span className="text-xs text-[var(--fg-muted)]">{vocab.macroEmpty}</span>
+                  )}
                 </div>
-              ) : null}
+              </div>
+            ) : null}
 
-              {category === "macros" ? (
-                <Stack gap="4">
-                  <div
-                    data-control-tier="stage"
-                    className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-[var(--radius-md)] p-4 flex flex-col gap-3"
-                  >
-                    <ChoiceChips
-                      ariaLabel={vocab.categories.macros}
-                      variant="cards"
-                      size="sm"
-                      value={macroMode}
-                      onChange={setMacroMode}
-                      options={[
-                        { value: "once" as const, label: locale === "ar" ? "تشغيل مرة" : "Play once" },
-                        { value: "hold" as const, label: locale === "ar" ? "تكرار عند الضغط" : "Repeat while held" },
-                        { value: "toggle" as const, label: locale === "ar" ? "تشغيل / إيقاف" : "Toggle repeat" },
-                      ]}
-                    />
-                  </div>
-                  <div className="pt-3 border-t border-[var(--border)] flex flex-col gap-2">
-                    {macros.length > 0 ? (
-                      <ChoiceChips
-                        ariaLabel={vocab.navMacros}
-                        variant="pills"
-                        tier="presets"
-                        value={currentAction}
-                        onChange={onAssign}
-                        size="sm"
-                        options={macros.map((m) => ({
-                          value: macroMode === "once" ? `macro:${m.id}` : `macro:${m.id}@${macroMode}`,
-                          label: m.name,
-                        }))}
-                      />
-                    ) : (
-                      <span className="text-xs text-[var(--fg-muted)]">{vocab.macroEmpty}</span>
-                    )}
-                  </div>
-                </Stack>
-              ) : null}
-
-              {category === "disabled" ? (
-                <div
-                  data-control-tier="stage"
-                  className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-[var(--radius-md)] p-4 flex flex-col gap-3"
-                >
-                  <Button variant="danger" fullWidth={true} onClick={() => onAssign("disabled")}>
-                    <Ban size={15} strokeWidth={2} />
-                    <span>{formatHumanAction("disabled", locale)}</span>
-                  </Button>
-                </div>
-              ) : null}
-            </Stack>
-          </Stack>
+            {category === "disabled" ? (
+              <div
+                data-control-tier="stage"
+                className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-[var(--radius-md)] p-3 flex flex-col gap-2.5"
+              >
+                <Button variant="danger" fullWidth={true} onClick={() => onAssign("disabled")}>
+                  <Ban size={15} strokeWidth={2} />
+                  <span>{formatHumanAction("disabled", locale)}</span>
+                </Button>
+              </div>
+            ) : null}
+          </div>
         )}
       </div>
 

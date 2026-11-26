@@ -96,20 +96,20 @@ export function AppShell({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-screen w-full bg-[var(--surface-0)] text-[var(--fg)] flex">
+    <div data-fit-viewport="true" className="min-h-dvh w-full bg-[var(--surface-0)] text-[var(--fg)] flex">
       {sidebar ? (
         <aside className="hidden lg:flex lg:flex-col w-56 xl:w-60 shrink-0 border-e border-[var(--border)] bg-[var(--surface-1)] p-4">
           {sidebar}
         </aside>
       ) : null}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+      <div className="flex-1 min-w-0 flex flex-col min-h-dvh">
         <header className="w-full min-h-[56px] border-b border-[var(--border)] bg-[var(--surface-1)] px-4 sm:px-6 py-2 flex items-center">
           {header}
         </header>
         <div className={`${sidebar ? "lg:hidden" : "md:hidden"} border-b border-[var(--border)] bg-[var(--surface-1)] px-3 py-1.5`}>
           {mobileNav}
         </div>
-        <main className="w-full flex-1 min-h-0 min-w-0 px-4 sm:px-6 py-4 flex flex-col gap-4">{children}</main>
+        <main className="w-full flex-1 min-h-0 min-w-0 px-4 sm:px-6 py-3 flex flex-col gap-3">{children}</main>
       </div>
     </div>
   );

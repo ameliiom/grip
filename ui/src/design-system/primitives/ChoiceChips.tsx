@@ -33,18 +33,20 @@ export function ChoiceChips<T extends string | number>({
   size?: ControlSize;
   ariaLabel: string;
   dir?: "ltr" | "rtl" | "auto";
-  columns?: 2 | 3 | 4;
+  columns?: 2 | 3 | 4 | 5;
   variant?: ChoiceChipsVariant;
   tier?: string;
 }) {
   const layoutCls =
-    columns === 4
-      ? "grid grid-cols-2 sm:grid-cols-4 gap-1.5 w-full"
-      : columns === 3
-        ? "grid grid-cols-2 sm:grid-cols-3 gap-1.5 w-full"
-        : columns === 2
-          ? "grid grid-cols-2 gap-1.5 w-full"
-          : "flex flex-wrap items-center gap-2";
+    columns === 5
+      ? "grid grid-cols-3 sm:grid-cols-5 gap-1.5 w-full"
+      : columns === 4
+        ? "grid grid-cols-2 sm:grid-cols-4 gap-1.5 w-full"
+        : columns === 3
+          ? "grid grid-cols-2 sm:grid-cols-3 gap-1.5 w-full"
+          : columns === 2
+            ? "grid grid-cols-2 gap-1.5 w-full"
+            : "flex flex-wrap items-center gap-2";
 
   const wrapperCls =
     variant === "tabs"

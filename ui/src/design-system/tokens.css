@@ -15,6 +15,7 @@
 
 :root,
 :root[data-theme="light"] {
+  color-scheme: light;
   --surface-0: #f4f5f7;
   --surface-1: #ffffff;
   --surface-2: #ecedf1;
@@ -39,6 +40,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --surface-0: #09090b;
   --surface-1: #121216;
   --surface-2: #1c1c22;
@@ -76,8 +78,23 @@
   }
 }
 
-html {
-  scrollbar-gutter: stable;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
 }
 
 html,

@@ -3,7 +3,7 @@ const OUT_DIR = process.env.SHOT_DIR || ".";
 
 export default async function capture(b) {
   await b.colorScheme("dark");
-  await b.viewport(1366, 900, false);
+  await b.viewport(1280, 780, false);
   await b.goto(`${URL}/#buttons`);
   await b.waitFor('[data-primary-content="true"]', 15000);
   await b.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");

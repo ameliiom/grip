@@ -1,4 +1,4 @@
-use crate::settings::{grip_config_dir, set_autostart, AppSettings};
+use crate::settings::{grip_config_dir, normalize_theme, set_autostart, AppSettings};
 use crate::win_host::{self, RunningApp};
 use secbird_core::actions;
 use secbird_core::buttons::{button_name, Layer};
@@ -514,7 +514,16 @@ impl AppBus {
 
     pub fn is_dark_theme(&self) -> bool {
         let guard = self.0.lock().unwrap_or_else(|p| p.into_inner());
-        guard.settings.theme != "light"
+        match guard.settings.theme.as_str() {
+            "dark" => true,
+            "light" => false,
+            _ => win_host::windows_prefers_dark(),
+        }
+    }
+
+    pub fn close_to_tray(&self) -> bool {
+        let guard = self.0.lock().unwrap_or_else(|p| p.into_inner());
+        guard.settings.close_to_tray
     }
 }
 
@@ -1125,6 +1134,7 @@ impl BusEngine {
             }
             BusCommand::UpdateSettings { mut settings } => {
                 settings.battery_warning_at = settings.battery_warning_at.clamp(5, 95);
+                settings.theme = normalize_theme(&settings.theme);
                 if settings.battery_warning_at != self.settings.battery_warning_at
                     || settings.battery_warning != self.settings.battery_warning
                 {
@@ -1731,6 +1741,44 @@ mod tests {
         low_thresh.battery_warning_at = 10;
         let _ = bus.execute(BusCommand::UpdateSettings { settings: low_thresh }).unwrap();
         assert!(bus.check_battery_alerts().is_empty());
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_file_name("settings.json"));
+    }
+
+    #[test]
+    fn settings_theme_and_close_to_tray_defaults_and_normalization() {
+        let (mut bus, path) = test_bus();
+        let initial = bus
+            .execute(BusCommand::GetWorkspace { device_key: None })
+            .unwrap()
+            .workspace
+            .settings;
+        assert_eq!(initial.theme, "system");
+        assert!(initial.close_to_tray);
+
+        let mut next = initial;
+        next.theme = "light".into();
+        next.close_to_tray = false;
+        let updated = bus
+            .execute(BusCommand::UpdateSettings { settings: next })
+            .unwrap()
+            .workspace
+            .settings;
+        assert_eq!(updated.theme, "light");
+        assert!(!updated.close_to_tray);
+
+        let mut invalid_theme = updated;
+        invalid_theme.theme = "neon-invalid".into();
+        let normalized = bus
+            .execute(BusCommand::UpdateSettings { settings: invalid_theme })
+            .unwrap()
+            .workspace
+            .settings;
+        assert_eq!(normalized.theme, "system");
+
+        let engine_wrap = AppBus(Mutex::new(bus));
+        assert!(!engine_wrap.close_to_tray());
 
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(path.with_file_name("settings.json"));

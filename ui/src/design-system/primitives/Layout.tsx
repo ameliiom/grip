@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 type GapToken = "1" | "2" | "4" | "6" | "8";
 
@@ -88,11 +88,15 @@ export function AppShell({
   sidebar,
   header,
   mobileNav,
+  onHeaderMouseDown,
+  onHeaderDoubleClick,
   children,
 }: {
   sidebar?: ReactNode;
   header: ReactNode;
   mobileNav: ReactNode;
+  onHeaderMouseDown?: (ev: MouseEvent<HTMLElement>) => void;
+  onHeaderDoubleClick?: (ev: MouseEvent<HTMLElement>) => void;
   children: ReactNode;
 }) {
   return (
@@ -103,7 +107,11 @@ export function AppShell({
         </aside>
       ) : null}
       <div className="flex-1 min-w-0 flex flex-col min-h-dvh">
-        <header className="w-full min-h-[56px] border-b border-[var(--border)] bg-[var(--surface-1)] px-4 sm:px-6 py-2 flex items-center">
+        <header
+          onMouseDown={onHeaderMouseDown}
+          onDoubleClick={onHeaderDoubleClick}
+          className={`w-full min-h-[56px] border-b border-[var(--border)] bg-[var(--surface-1)] px-4 sm:px-6 py-2 flex items-center ${onHeaderMouseDown ? "select-none" : ""}`}
+        >
           {header}
         </header>
         <div className={`${sidebar ? "lg:hidden" : "md:hidden"} border-b border-[var(--border)] bg-[var(--surface-1)] px-3 py-1.5`}>

@@ -46,7 +46,7 @@ export function DeviceIdentityBar({
             title={vocab.connected}
             aria-label={vocab.connected}
           />
-          <span className="hidden lg:inline text-sm font-medium text-[var(--fg)] whitespace-nowrap truncate max-w-[280px] xl:max-w-none">
+          <span className="hidden lg:inline text-sm font-medium text-[var(--fg)] whitespace-nowrap truncate max-w-[165px] xl:max-w-none">
             {cleanDeviceDisplayName(device.name)}
           </span>
           {batteryNode}

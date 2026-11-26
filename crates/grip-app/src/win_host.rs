@@ -47,7 +47,8 @@ mod imp {
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::{Arc, Mutex, OnceLock};
     use windows_sys::Win32::Foundation::{
-        CloseHandle, GetLastError, BOOL, ERROR_ALREADY_EXISTS, HANDLE, HWND, LPARAM, LRESULT, RECT, SIZE, TRUE, WPARAM,
+        CloseHandle, GetLastError, BOOL, ERROR_ALREADY_EXISTS, ERROR_SUCCESS, HANDLE, HWND, LPARAM, LRESULT, RECT,
+        SIZE, TRUE, WPARAM,
     };
     use windows_sys::Win32::Graphics::Dwm::DwmSetWindowAttribute;
     use windows_sys::Win32::Graphics::Gdi::{
@@ -59,6 +60,9 @@ mod imp {
     };
     use windows_sys::Win32::Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW};
     use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
+    use windows_sys::Win32::System::Registry::{
+        RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_CURRENT_USER, KEY_READ,
+    };
     use windows_sys::Win32::System::Threading::{
         CreateMutexW, GetCurrentThreadId, OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
         PROCESS_QUERY_LIMITED_INFORMATION,
@@ -137,15 +141,45 @@ mod imp {
         }
     }
 
+    pub fn windows_prefers_dark() -> bool {
+        let subkey = wide("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
+        let val_name = wide("AppsUseLightTheme");
+        unsafe {
+            let mut key: HKEY = null_mut();
+            if RegOpenKeyExW(HKEY_CURRENT_USER, subkey.as_ptr(), 0, KEY_READ, &mut key) != ERROR_SUCCESS {
+                return true;
+            }
+            let mut data: u32 = 0;
+            let mut size: u32 = 4;
+            let ok = RegQueryValueExW(
+                key,
+                val_name.as_ptr(),
+                null(),
+                null_mut(),
+                (&mut data as *mut u32).cast::<u8>(),
+                &mut size,
+            ) == ERROR_SUCCESS
+                && size == 4;
+            RegCloseKey(key);
+            if ok {
+                data == 0
+            } else {
+                true
+            }
+        }
+    }
+
     pub fn set_window_dark_titlebar(hwnd_raw: isize, dark: bool) {
         if cfg!(test) || hwnd_raw == 0 {
             return;
         }
         let val: i32 = if dark { 1 } else { 0 };
+        let corner_round: i32 = 2; // DWMWCP_ROUND for frameless Windows 11 crisp corners & shadow
         unsafe {
             if DwmSetWindowAttribute(hwnd_raw as HWND, 20, &val as *const i32 as *const c_void, 4) != 0 {
                 let _ = DwmSetWindowAttribute(hwnd_raw as HWND, 19, &val as *const i32 as *const c_void, 4);
             }
+            let _ = DwmSetWindowAttribute(hwnd_raw as HWND, 33, &corner_round as *const i32 as *const c_void, 4);
         }
     }
 
@@ -709,12 +743,16 @@ mod imp {
 
     pub fn set_window_dark_titlebar(_hwnd_raw: isize, _dark: bool) {}
 
+    pub fn windows_prefers_dark() -> bool {
+        true
+    }
+
     pub fn start_host_monitor(_callbacks: HostCallbacks) {}
 }
 
 pub use imp::{
     acquire_single_instance, open_folder, running_apps, set_window_dark_titlebar, show_osd, start_host_monitor,
-    HostCallbacks,
+    windows_prefers_dark, HostCallbacks,
 };
 
 #[cfg(test)]

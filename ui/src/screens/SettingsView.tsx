@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronDown, Copy, FolderOpen, Moon, Palette, RefreshCw, Sun } from "lucide-react";
+import { CheckCircle2, ChevronDown, Copy, FolderOpen, Monitor, Moon, Palette, RefreshCw, Sun } from "lucide-react";
 import { useState } from "react";
 import type { AppSettings, DeviceSnapshot, FirmwareCheckResult } from "../acl/transport";
 import { BrandColorPicker } from "../design-system/BrandColorPicker";
@@ -47,7 +47,7 @@ export function SettingsView({
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 items-stretch">
       {/* Startup & Behavior */}
       <SurfaceCard primaryContent={true} stableFrame={true} className="lg:col-span-7 min-w-0 h-full">
-        <Stack gap="4">
+        <Stack gap="2">
           <h2 className="text-base font-bold">{vocab.settingsBehaviorTitle}</h2>
 
           <SurfaceInset>
@@ -60,6 +60,25 @@ export function SettingsView({
                 ariaLabel={vocab.autostartLabel}
                 checked={settings.autostart}
                 onCheckedChange={(on) => patch({ autostart: on })}
+              />
+            </Inline>
+          </SurfaceInset>
+
+          <SurfaceInset>
+            <Inline gap="2" justify="between" wrap={true}>
+              <Stack gap="1">
+                <span className="text-sm font-semibold">{vocab.closeBehaviorLabel}</span>
+                <span className="text-xs text-[var(--fg-muted)]">{vocab.closeBehaviorHint}</span>
+              </Stack>
+              <SegmentedControl
+                ariaLabel={vocab.closeBehaviorLabel}
+                size="sm"
+                value={settings.closeToTray ? "tray" : "quit"}
+                onChange={(mode) => patch({ closeToTray: mode === "tray" })}
+                options={[
+                  { value: "tray", label: vocab.closeToTrayOption },
+                  { value: "quit", label: vocab.closeQuitOption },
+                ]}
               />
             </Inline>
           </SurfaceInset>
@@ -138,8 +157,9 @@ export function SettingsView({
                 ariaLabel={vocab.themeLabel}
                 size="sm"
                 value={settings.theme}
-                onChange={(t) => patch({ theme: t })}
+                onChange={(t) => patch({ theme: t as AppSettings["theme"] })}
                 options={[
+                  { value: "system", label: vocab.themeSystem, icon: <Monitor size={14} strokeWidth={2} /> },
                   { value: "dark", label: vocab.themeDark, icon: <Moon size={14} strokeWidth={2} /> },
                   { value: "light", label: vocab.themeLight, icon: <Sun size={14} strokeWidth={2} /> },
                 ]}

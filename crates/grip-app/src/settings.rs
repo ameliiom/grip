@@ -21,6 +21,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub autostart: bool,
     #[serde(default = "default_true")]
+    pub close_to_tray: bool,
+    #[serde(default = "default_true")]
     pub popups: bool,
     #[serde(default = "default_true")]
     pub auto_switch: bool,
@@ -36,6 +38,14 @@ pub struct AppSettings {
     pub locale: String,
 }
 
+pub fn normalize_theme(raw: &str) -> String {
+    match raw.trim() {
+        "dark" => "dark".into(),
+        "light" => "light".into(),
+        _ => "system".into(),
+    }
+}
+
 fn default_true() -> bool {
     true
 }
@@ -45,7 +55,7 @@ fn default_battery_warn() -> u8 {
 }
 
 fn default_theme() -> String {
-    "dark".into()
+    "system".into()
 }
 
 fn default_brand() -> String {
@@ -60,11 +70,12 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             autostart: false,
+            close_to_tray: true,
             popups: true,
             auto_switch: true,
             battery_warning: true,
             battery_warning_at: 15,
-            theme: "dark".into(),
+            theme: "system".into(),
             brand_hex: "#d4af37".into(),
             locale: "ar".into(),
         }
@@ -78,6 +89,7 @@ impl AppSettings {
             .and_then(|raw| serde_json::from_str(raw.trim_start_matches('\u{feff}')).ok())
             .unwrap_or_default();
         s.battery_warning_at = s.battery_warning_at.clamp(5, 95);
+        s.theme = normalize_theme(&s.theme);
         s.autostart = autostart_enabled();
         s
     }

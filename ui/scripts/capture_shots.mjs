@@ -34,9 +34,24 @@ export default async function capture(b) {
   await b.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
   await b.shot(`${OUT_DIR}/grip-v5-mobile-dark.png`);
 
+  await b.viewport(1280, 780, false);
+  await b.goto(`${URL}/?desktop=1#buttons`);
+  await b.waitFor('[data-primary-content="true"]', 15000);
+  await b.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+  await b.shot(`${OUT_DIR}/grip-v6-desktop-dark.png`);
+
+  await b.goto(`${URL}/?desktop=1#settings`);
+  await b.waitFor('[data-primary-content="true"]', 15000);
+  await b.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+  const settingsOverflow = await b.eval("document.documentElement.scrollHeight - window.innerHeight");
+  if (settingsOverflow > 2) {
+    throw new Error(`Settings view overflowed 1280x780 vertically by ${settingsOverflow}px`);
+  }
+  await b.shot(`${OUT_DIR}/grip-v6-settings-dark.png`);
+
   const errs = b.errors();
   if (errs.length) {
     throw new Error("Page errors during screenshot capture: " + JSON.stringify(errs));
   }
-  console.log("[PASS] Captured 6 full-size v5 screenshots cleanly");
+  console.log("[PASS] Captured 8 full-size screenshots cleanly");
 }

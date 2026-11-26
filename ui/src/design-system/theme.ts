@@ -1,4 +1,16 @@
+export type ThemePreference = "system" | "dark" | "light";
 export type ThemeMode = "light" | "dark";
+
+export function getSystemTheme(): ThemeMode {
+  if (typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: light)").matches) {
+    return "light";
+  }
+  return "dark";
+}
+
+export function resolveTheme(pref: ThemePreference): ThemeMode {
+  return pref === "system" ? getSystemTheme() : pref;
+}
 
 export const DEFAULT_BRAND_HEX = "#d4af37";
 

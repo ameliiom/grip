@@ -17,6 +17,8 @@
         "minWidth": 360,
         "minHeight": 540,
         "resizable": true,
+        "decorations": false,
+        "shadow": true,
         "visible": false,
         "backgroundColor": "#09090b"
       }

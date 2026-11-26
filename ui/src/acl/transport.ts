@@ -91,11 +91,12 @@ export interface RunningApp {
 
 export interface AppSettings {
   autostart: boolean;
+  closeToTray: boolean;
   popups: boolean;
   autoSwitch: boolean;
   batteryWarning: boolean;
   batteryWarningAt: number;
-  theme: "dark" | "light";
+  theme: "system" | "dark" | "light";
   brandHex: string;
   locale: "ar" | "en";
 }
@@ -314,11 +315,12 @@ const simState: {
     ],
     settings: {
       autostart: false,
+      closeToTray: true,
       popups: true,
       autoSwitch: true,
       batteryWarning: true,
       batteryWarningAt: 15,
-      theme: typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark",
+      theme: "system",
       brandHex: DEFAULT_BRAND_HEX,
       locale: "ar",
     },
@@ -529,6 +531,21 @@ export async function executeCommand(cmd: BusCommand): Promise<BusResponse> {
   }
   const normalizedCmd = cmd.type === "getSnapshot" ? { type: "getWorkspace" as const, deviceKey: cmd.deviceKey } : cmd;
   return invoke<BusResponse>("execute_command", { cmd: normalizedCmd });
+}
+
+export type WindowAction = "minimize" | "toggleMaximize" | "isMaximized" | "close" | "startDragging";
+
+export function isDesktopWindow(): boolean {
+  if (isTauriRuntime()) return true;
+  if (typeof window !== "undefined") {
+    return new URLSearchParams(window.location.search).get("desktop") === "1";
+  }
+  return false;
+}
+
+export async function windowControl(action: WindowAction): Promise<boolean> {
+  if (!isTauriRuntime()) return false;
+  return invoke<boolean>("window_control", { action });
 }
 
 export async function subscribeWorkspaceUpdates(onUpdate: () => void): Promise<() => void> {

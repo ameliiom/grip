@@ -537,6 +537,10 @@ export interface Vocab {
   settingsBehaviorTitle: string;
   autostartLabel: string;
   autostartHint: string;
+  closeBehaviorLabel: string;
+  closeBehaviorHint: string;
+  closeToTrayOption: string;
+  closeQuitOption: string;
   popupsLabel: string;
   popupsHint: string;
   autoSwitchLabel: string;
@@ -545,10 +549,15 @@ export interface Vocab {
   lowBatteryLevelLabel: string;
   settingsAppearanceTitle: string;
   themeLabel: string;
+  themeSystem: string;
   themeDark: string;
   themeLight: string;
   accentColorLabel: string;
   languageLabel: string;
+  windowMinimize: string;
+  windowMaximize: string;
+  windowRestore: string;
+  windowClose: string;
   deviceSupportTitle: string;
   deviceModelLabel: string;
   firmwareVersionLabel: string;
@@ -700,6 +709,10 @@ export const VOCAB: Record<Locale, Vocab> = {
     settingsBehaviorTitle: "التشغيل والتنبيهات",
     autostartLabel: "تشغيل تلقائي مع الويندوز",
     autostartHint: "يفتح بالخلفية بأيقونة الساعة بأقل استهلاك للذاكرة",
+    closeBehaviorLabel: "عند إغلاق النافذة",
+    closeBehaviorHint: "اختر هل يبقى Grip بجانب الساعة أو يغلق بالكامل",
+    closeToTrayOption: "إخفاء للساعة",
+    closeQuitOption: "خروج كامل",
     popupsLabel: "إشعار خفيف على زاوية الشاشة عند تبديل السرعة أو البروفايل",
     popupsHint: "يظهر لثانية فوق الساعة بدون ما يقاطع اللعب",
     autoSwitchLabel: "التبديل التلقائي للبروفايل حسب البرنامج المفتوح",
@@ -708,10 +721,15 @@ export const VOCAB: Record<Locale, Vocab> = {
     lowBatteryLevelLabel: "ينبهك إذا وصلت أقل من",
     settingsAppearanceTitle: "المظهر واللغة",
     themeLabel: "المظهر",
+    themeSystem: "تلقائي",
     themeDark: "داكن",
     themeLight: "فاتح",
     accentColorLabel: "لون التمييز",
     languageLabel: "اللغة",
+    windowMinimize: "تصغير",
+    windowMaximize: "تكبير",
+    windowRestore: "استعادة الحجم",
+    windowClose: "إغلاق",
     deviceSupportTitle: "معلومات الجهاز والدعم",
     deviceModelLabel: "الجهاز",
     firmwareVersionLabel: "إصدار البرنامج الداخلي",
@@ -861,6 +879,10 @@ export const VOCAB: Record<Locale, Vocab> = {
     settingsBehaviorTitle: "Startup & alerts",
     autostartLabel: "Start automatically with Windows",
     autostartHint: "Runs quietly in the tray with minimal memory",
+    closeBehaviorLabel: "When closing window",
+    closeBehaviorHint: "Choose whether Grip stays in the tray or exits completely",
+    closeToTrayOption: "Keep in tray",
+    closeQuitOption: "Quit app",
     popupsLabel: "Show brief corner popup on speed or profile switch",
     popupsHint: "Fades after 1 second without stealing focus",
     autoSwitchLabel: "Auto-switch profile by active app",
@@ -869,10 +891,15 @@ export const VOCAB: Record<Locale, Vocab> = {
     lowBatteryLevelLabel: "Warn below",
     settingsAppearanceTitle: "Appearance & language",
     themeLabel: "Theme",
+    themeSystem: "Auto",
     themeDark: "Dark",
     themeLight: "Light",
     accentColorLabel: "Accent color",
     languageLabel: "Language",
+    windowMinimize: "Minimize",
+    windowMaximize: "Maximize",
+    windowRestore: "Restore",
+    windowClose: "Close",
     deviceSupportTitle: "Device details & support",
     deviceModelLabel: "Device",
     firmwareVersionLabel: "Internal version",

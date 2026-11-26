@@ -1,18 +1,29 @@
 import {
   ChevronDown,
   Command,
+  Copy,
   Gamepad2,
+  Minus,
   MousePointerClick,
   Redo2,
   RefreshCw,
   Settings,
   Sliders,
   Sparkles,
+  Square,
   Sun,
   Undo2,
+  X,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import type { AppSettings, FirmwareCheckResult, LayerName, WorkspaceSnapshot } from "../acl/transport";
+import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import {
+  isDesktopWindow,
+  windowControl,
+  type AppSettings,
+  type FirmwareCheckResult,
+  type LayerName,
+  type WorkspaceSnapshot,
+} from "../acl/transport";
 import {
   AppShell,
   Badge,
@@ -129,6 +140,41 @@ export function WorkspaceShell({
   const [selectedButton, setSelectedButton] = useState("grid-5");
   const [layer, setLayer] = useState<LayerName>("normal");
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const desktopMode = isDesktopWindow();
+
+  useEffect(() => {
+    if (!desktopMode) return;
+    let active = true;
+    const syncMax = () => {
+      void windowControl("isMaximized").then((m) => {
+        if (active) setIsMaximized(m);
+      });
+    };
+    syncMax();
+    window.addEventListener("resize", syncMax);
+    return () => {
+      active = false;
+      window.removeEventListener("resize", syncMax);
+    };
+  }, [desktopMode]);
+
+  const isInteractiveTarget = (target: EventTarget | null) =>
+    Boolean((target as HTMLElement | null)?.closest("button, a, input, [role='button'], [role='combobox'], [role='switch'], [data-no-drag='true']"));
+
+  const handleHeaderMouseDown = desktopMode
+    ? (ev: MouseEvent<HTMLElement>) => {
+        if (ev.button !== 0 || ev.detail >= 2 || isInteractiveTarget(ev.target)) return;
+        void windowControl("startDragging");
+      }
+    : undefined;
+
+  const handleHeaderDoubleClick = desktopMode
+    ? (ev: MouseEvent<HTMLElement>) => {
+        if (isInteractiveTarget(ev.target)) return;
+        void windowControl("toggleMaximize").then(setIsMaximized);
+      }
+    : undefined;
 
   const device = workspace?.activeDevice ?? null;
   const settings = workspace?.settings;
@@ -229,7 +275,7 @@ export function WorkspaceShell({
     <div
       className={
         !useSidebar
-          ? "flex flex-wrap items-center justify-between gap-2 w-full md:grid md:grid-cols-[1fr_auto_1fr] md:items-center"
+          ? "flex flex-wrap items-center justify-between gap-2 w-full md:flex-nowrap lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center"
           : "flex flex-wrap items-center justify-between gap-2 w-full"
       }
     >
@@ -271,7 +317,7 @@ export function WorkspaceShell({
         </nav>
       ) : null}
 
-      <div className={`flex items-center gap-1.5 shrink-0 ${!useSidebar ? "justify-self-end" : ""}`}>
+      <div className={`flex flex-wrap sm:flex-nowrap items-center justify-end gap-1 min-w-0 ${!useSidebar ? "justify-self-end" : ""}`}>
         {device ? (
           <div
             className={section === "profiles" ? "invisible pointer-events-none select-none" : ""}
@@ -336,7 +382,7 @@ export function WorkspaceShell({
         >
           <Redo2 size={16} strokeWidth={2} />
         </Button>
-        <span className="hidden md:inline-flex">
+        <span className="hidden lg:inline-flex">
           <Button
             variant="ghost"
             size="sm"
@@ -362,6 +408,43 @@ export function WorkspaceShell({
               <Settings size={16} strokeWidth={2} />
             </Button>
           </span>
+        ) : null}
+
+        {desktopMode ? (
+          <div className="inline-flex items-center gap-1 shrink-0" data-no-drag="true">
+            <span aria-hidden="true" className="w-px h-5 bg-[var(--border)] shrink-0" />
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly={true}
+              onClick={() => void windowControl("minimize")}
+              aria-label={vocab.windowMinimize}
+              title={vocab.windowMinimize}
+            >
+              <Minus size={15} strokeWidth={2} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly={true}
+              onClick={() => void windowControl("toggleMaximize").then(setIsMaximized)}
+              aria-label={isMaximized ? vocab.windowRestore : vocab.windowMaximize}
+              title={isMaximized ? vocab.windowRestore : vocab.windowMaximize}
+            >
+              {isMaximized ? <Copy size={13} strokeWidth={2} /> : <Square size={13} strokeWidth={2} />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly={true}
+              dangerHover={true}
+              onClick={() => void windowControl("close")}
+              aria-label={vocab.windowClose}
+              title={vocab.windowClose}
+            >
+              <X size={15} strokeWidth={2} />
+            </Button>
+          </div>
         ) : null}
       </div>
     </div>
@@ -392,7 +475,13 @@ export function WorkspaceShell({
   );
 
   return (
-    <AppShell sidebar={sidebarContent} header={headerContent} mobileNav={mobileNavContent}>
+    <AppShell
+      sidebar={sidebarContent}
+      header={headerContent}
+      mobileNav={mobileNavContent}
+      onHeaderMouseDown={handleHeaderMouseDown}
+      onHeaderDoubleClick={handleHeaderDoubleClick}
+    >
       {errorMsg ? (
         <SurfaceCard>
           <Badge tone="danger" showDot={true}>

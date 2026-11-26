@@ -95,6 +95,35 @@ fn open_main_window(app: &AppHandle, bus: &AppBus) {
 }
 
 #[tauri::command]
+fn window_control(win: WebviewWindow, action: String) -> Result<bool, String> {
+    match action.as_str() {
+        "minimize" => {
+            win.minimize().map_err(|e| e.to_string())?;
+            Ok(false)
+        }
+        "toggleMaximize" => {
+            if win.is_maximized().map_err(|e| e.to_string())? {
+                win.unmaximize().map_err(|e| e.to_string())?;
+                Ok(false)
+            } else {
+                win.maximize().map_err(|e| e.to_string())?;
+                Ok(true)
+            }
+        }
+        "isMaximized" => Ok(win.is_maximized().unwrap_or(false)),
+        "close" => {
+            win.close().map_err(|e| e.to_string())?;
+            Ok(false)
+        }
+        "startDragging" => {
+            win.start_dragging().map_err(|e| e.to_string())?;
+            Ok(false)
+        }
+        other => Err(format!("Unknown window action: {other}")),
+    }
+}
+
+#[tauri::command]
 fn execute_command(
     app: AppHandle,
     bus: State<'_, Arc<AppBus>>,
@@ -120,7 +149,7 @@ fn main() {
     tauri::Builder::default()
         .manage(bus)
         .manage(QuitRequested(AtomicBool::new(false)))
-        .invoke_handler(tauri::generate_handler![execute_command])
+        .invoke_handler(tauri::generate_handler![execute_command, window_control])
         .setup(move |app| {
             let app_bus = app.state::<Arc<AppBus>>().inner().clone();
             let initial_menu = build_tray_menu(app.handle(), &app_bus)?;
@@ -206,9 +235,11 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error building Grip")
         .run(|app, event| {
-            // Destroy WebView2 window on close while keeping the lightweight Rust tray active.
+            // Destroy WebView2 window on close while keeping tray active if closeToTray is enabled.
             if let RunEvent::ExitRequested { api, .. } = event {
-                if !app.state::<QuitRequested>().0.load(Ordering::Relaxed) {
+                let force_quit = app.state::<QuitRequested>().0.load(Ordering::Relaxed);
+                let stay_in_tray = app.state::<Arc<AppBus>>().close_to_tray();
+                if !force_quit && stay_in_tray {
                     api.prevent_exit();
                 }
             }

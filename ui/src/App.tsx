@@ -8,17 +8,18 @@ import {
   type FirmwareCheckResult,
   type WorkspaceSnapshot,
 } from "./acl/transport";
-import { applyThemeTokens, DEFAULT_BRAND_HEX } from "./design-system/theme";
+import { applyThemeTokens, DEFAULT_BRAND_HEX, getSystemTheme, resolveTheme, type ThemeMode } from "./design-system/theme";
 import { VOCAB } from "./i18n/vocab";
 import { WorkspaceShell, type NavSection } from "./screens/WorkspaceShell";
 
 const DEFAULT_SETTINGS: AppSettings = {
   autostart: false,
+  closeToTray: true,
   popups: true,
   autoSwitch: true,
   batteryWarning: true,
   batteryWarningAt: 15,
-  theme: "dark",
+  theme: "system",
   brandHex: DEFAULT_BRAND_HEX,
   locale: "ar",
 };
@@ -39,6 +40,7 @@ export function App() {
   const [firmwareResult, setFirmwareResult] = useState<FirmwareCheckResult | null>(null);
   const [section, setSection] = useState<NavSection>(getInitialSection);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [systemTheme, setSystemTheme] = useState<ThemeMode>(getSystemTheme);
 
   const settings = workspace?.settings ?? DEFAULT_SETTINGS;
   const vocab = VOCAB[settings.locale];
@@ -49,26 +51,19 @@ export function App() {
   }, [settings.locale]);
 
   useEffect(() => {
-    const scheme =
-      typeof window !== "undefined" && !workspace && window.matchMedia?.("(prefers-color-scheme: light)").matches
-        ? "light"
-        : settings.theme;
-    applyThemeTokens(scheme, settings.brandHex || DEFAULT_BRAND_HEX);
-  }, [settings.theme, settings.brandHex, workspace]);
+    const resolved = settings.theme === "system" ? systemTheme : resolveTheme(settings.theme);
+    applyThemeTokens(resolved, settings.brandHex || DEFAULT_BRAND_HEX);
+  }, [settings.theme, settings.brandHex, systemTheme]);
 
   useEffect(() => {
     const mq = window.matchMedia?.("(prefers-color-scheme: light)");
     if (!mq) return;
     const onScheme = (ev: MediaQueryListEvent) => {
-      const nextTheme = ev.matches ? "light" : "dark";
-      setWorkspace((prev) =>
-        prev ? { ...prev, settings: { ...prev.settings, theme: nextTheme } } : prev,
-      );
-      applyThemeTokens(nextTheme, settings.brandHex || DEFAULT_BRAND_HEX);
+      setSystemTheme(ev.matches ? "light" : "dark");
     };
     mq.addEventListener("change", onScheme);
     return () => mq.removeEventListener("change", onScheme);
-  }, [settings.brandHex]);
+  }, []);
 
   useEffect(() => {
     const onHash = () => setSection(getInitialSection());

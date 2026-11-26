@@ -7,6 +7,7 @@ interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "cla
   variant?: ButtonVariant;
   size?: ControlSize;
   active?: boolean;
+  dangerHover?: boolean;
   children: ReactNode;
   fullWidth?: boolean;
   iconOnly?: boolean;
@@ -30,6 +31,7 @@ export function Button({
   variant = "secondary",
   size = "md",
   active = false,
+  dangerHover = false,
   fullWidth = false,
   iconOnly = false,
   dashed = false,
@@ -42,7 +44,9 @@ export function Button({
   if (variant === "primary") {
     tone = "bg-[var(--brand)] text-[var(--brand-fg)] font-semibold hover:brightness-95";
   } else if (variant === "ghost") {
-    tone = "bg-transparent text-[var(--fg)] hover:bg-[var(--surface-2)]";
+    tone = dangerHover
+      ? "bg-transparent text-[var(--fg-muted)] hover:bg-[var(--status-danger)] hover:text-white"
+      : "bg-transparent text-[var(--fg)] hover:bg-[var(--surface-2)]";
   } else if (variant === "danger") {
     tone = "bg-[var(--surface-2)] text-[var(--status-danger)] hover:bg-[var(--surface-3)]";
   }

@@ -66,7 +66,7 @@ function stopServer(child) {
   }
 }
 
-function runCdpScript(scriptRelPath) {
+function runCdpScript(scriptRelPath, extraEnv = {}) {
   const scriptPath = path.join(UI_DIR, scriptRelPath);
   const res = spawnSync(process.execPath, [EDGE_CDP, scriptPath], {
     cwd: UI_DIR,
@@ -75,6 +75,7 @@ function runCdpScript(scriptRelPath) {
       AUDIT_URL,
       SHOT_DIR,
       WIDTHS: process.env.WIDTHS || "360,375,480,768,1024,1366,1440",
+      ...extraEnv,
     },
     stdio: "inherit",
   });
@@ -87,6 +88,7 @@ function runCdpScript(scriptRelPath) {
 const server = await startPreviewServer();
 try {
   runCdpScript("scripts/browser_audit.mjs");
+  runCdpScript("scripts/browser_audit.mjs", { AUDIT_URL: `${AUDIT_URL}/?desktop=1` });
   runCdpScript("scripts/capture_shots.mjs");
 } finally {
   stopServer(server);

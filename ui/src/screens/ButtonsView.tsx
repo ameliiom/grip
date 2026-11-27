@@ -4,9 +4,9 @@ import type { DeviceSnapshot, LayerName } from "../acl/transport";
 import {
   Badge,
   Button,
+  ConfirmButton,
   HelpTip,
   Inline,
-  Popover,
   SegmentedControl,
   Stack,
   SurfaceCard,
@@ -43,8 +43,6 @@ export function ButtonsView({
   onPutBackOnboard: () => void;
 }) {
   const [view, setView] = useState<BlueprintView>(device.capabilities.hasSideGrid12 ? "side" : "top");
-  const [confirmRestoreAll, setConfirmRestoreAll] = useState(false);
-  const [confirmFactory, setConfirmFactory] = useState(false);
 
   const fallbackEntry = device.buttons.find((b) => b.id === "grid-5") ?? device.buttons[0];
   const activeEntry = device.buttons.find((b) => b.id === selectedButton) ?? fallbackEntry;
@@ -118,65 +116,25 @@ export function ButtonsView({
           {/* Bottom On-Board Memory Action Bar */}
           <div className="pt-3 border-t border-[var(--border)] flex flex-wrap items-center justify-between gap-3">
             <Inline gap="2" wrap={true}>
-              <Popover
-                open={confirmRestoreAll}
-                onOpenChange={setConfirmRestoreAll}
-                trigger={
-                  <Button variant="ghost" size="md">
-                    <RotateCcw size={15} strokeWidth={2} />
-                    <span>{vocab.restoreAllButtons}</span>
-                  </Button>
-                }
-              >
-                <Stack gap="2">
-                  <span className="text-xs font-medium text-[var(--fg)]">{vocab.confirmRestoreAllTitle}</span>
-                  <Inline gap="2" wrap={false}>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => {
-                        setConfirmRestoreAll(false);
-                        onRestoreAll();
-                      }}
-                    >
-                      {vocab.confirmYes}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setConfirmRestoreAll(false)}>
-                      {vocab.cancel}
-                    </Button>
-                  </Inline>
-                </Stack>
-              </Popover>
+              <ConfirmButton
+                variant="ghost"
+                size="md"
+                icon={<RotateCcw size={15} strokeWidth={2} />}
+                label={vocab.restoreAllButtons}
+                confirmLabel={vocab.confirmRestore}
+                title={vocab.confirmRestoreAllTitle}
+                onConfirm={onRestoreAll}
+              />
 
               {device.onboard ? (
-                <Popover
-                  open={confirmFactory}
-                  onOpenChange={setConfirmFactory}
-                  trigger={
-                    <Button variant="ghost" size="md">
-                      {vocab.restoreMouseOriginal}
-                    </Button>
-                  }
-                >
-                  <Stack gap="2">
-                    <span className="text-xs font-medium text-[var(--fg)]">{vocab.confirmRestoreFactoryTitle}</span>
-                    <Inline gap="2" wrap={false}>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => {
-                          setConfirmFactory(false);
-                          onPutBackOnboard();
-                        }}
-                      >
-                        {vocab.confirmYes}
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setConfirmFactory(false)}>
-                        {vocab.cancel}
-                      </Button>
-                    </Inline>
-                  </Stack>
-                </Popover>
+                <ConfirmButton
+                  variant="ghost"
+                  size="md"
+                  label={vocab.restoreMouseOriginal}
+                  confirmLabel={vocab.confirmRestore}
+                  title={vocab.confirmRestoreFactoryTitle}
+                  onConfirm={onPutBackOnboard}
+                />
               ) : null}
 
               {device.onboard ? (

@@ -1,9 +1,10 @@
-import { Moon, Plus, Sliders, Trash2, Zap } from "lucide-react";
+import { Moon, Plus, RotateCcw, Sliders, Trash2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { DeviceSnapshot } from "../acl/transport";
 import {
   Button,
   ChoiceChips,
+  ConfirmButton,
   HelpTip,
   Inline,
   NumberStepper,
@@ -33,6 +34,7 @@ export function PerformanceView({
   onSelectPolling,
   onSetSleep,
   onSetScroll,
+  onResetPerformance,
 }: {
   device: DeviceSnapshot;
   locale: Locale;
@@ -42,10 +44,12 @@ export function PerformanceView({
   onSelectPolling: (hz: number) => void;
   onSetSleep: (minutes?: number, autoSleep?: boolean) => void;
   onSetScroll: (patch: { mode?: string; disabled?: string; acceleration?: string; smartReel?: string }) => void;
+  onResetPerformance: () => void;
 }) {
   const { capabilities, dpi } = device;
   const activeIdx = Math.max(0, Math.min(dpi.stages.length - 1, dpi.activeStage - 1));
   const currentStage = dpi.stages[activeIdx] ?? [1600, 1600];
+  const defaultDpi = Math.min(capabilities.dpiMax, Math.max(capabilities.dpiMin, 1600));
 
   const [independentXY, setIndependentXY] = useState(currentStage[0] !== currentStage[1]);
   useEffect(() => {
@@ -111,6 +115,14 @@ export function PerformanceView({
               </Inline>
 
               <Inline gap="1" wrap={false}>
+                <ConfirmButton
+                  variant="ghost"
+                  size="sm"
+                  icon={<RotateCcw size={14} strokeWidth={2} />}
+                  label={vocab.resetDefaults}
+                  confirmLabel={vocab.confirmReset}
+                  onConfirm={onResetPerformance}
+                />
                 <Button
                   variant="secondary"
                   size="sm"
@@ -188,6 +200,8 @@ export function PerformanceView({
                     max={capabilities.dpiMax}
                     step={capabilities.dpiStep}
                     stops={ergonomicStops}
+                    defaultValue={defaultDpi}
+                    resetHint={vocab.sliderResetHint}
                     value={currentStage[0]}
                     onChange={(x) => updateCurrentStage(x, independentXY ? currentStage[1] : x)}
                   />
@@ -218,6 +232,8 @@ export function PerformanceView({
                       max={capabilities.dpiMax}
                       step={capabilities.dpiStep}
                       stops={ergonomicStops}
+                      defaultValue={defaultDpi}
+                      resetHint={vocab.sliderResetHint}
                       value={currentStage[1]}
                       onChange={(y) => updateCurrentStage(currentStage[0], y)}
                     />

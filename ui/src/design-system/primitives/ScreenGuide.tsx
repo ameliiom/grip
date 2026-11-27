@@ -8,6 +8,7 @@ export function ScreenGuide({
   summary,
   steps,
   saveNote,
+  shortcutsHint,
   open,
   onOpenChange,
 }: {
@@ -16,6 +17,7 @@ export function ScreenGuide({
   summary: string;
   steps: readonly string[];
   saveNote: string;
+  shortcutsHint?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -57,8 +59,13 @@ export function ScreenGuide({
               </li>
             ))}
           </ol>
-          <div className="pt-2 border-t border-[var(--border)]">
+          <div className="pt-2 border-t border-[var(--border)] flex flex-col gap-1">
             <p className="text-xs font-medium text-[var(--fg-muted)]">{saveNote}</p>
+            {shortcutsHint ? (
+              <p className="text-xs text-[var(--fg-muted)]" dir="ltr">
+                {shortcutsHint}
+              </p>
+            ) : null}
           </div>
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>

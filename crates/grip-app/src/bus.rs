@@ -1,5 +1,5 @@
 use crate::raw_accel::{self, RawAccelStatus};
-use crate::settings::{grip_config_dir, set_autostart, AppSettings, RawAccelSettings};
+use crate::settings::{grip_config_dir, set_autostart, AppSettings, RawAccelSettings, WindowBounds};
 use crate::smoother::{self, SmootherStatus};
 use crate::win_host::{self, RunningApp};
 use secbird_core::actions;
@@ -625,6 +625,20 @@ impl AppBus {
     pub fn close_to_tray(&self) -> bool {
         self.close_to_tray_flag.load(Ordering::Relaxed)
     }
+
+    pub fn window_bounds(&self) -> Option<WindowBounds> {
+        let guard = self.engine.lock().unwrap_or_else(|p| p.into_inner());
+        guard.settings.window_bounds
+    }
+
+    pub fn save_window_bounds(&self, bounds: WindowBounds) {
+        let mut guard = self.engine.lock().unwrap_or_else(|p| p.into_inner());
+        if guard.settings.window_bounds == Some(bounds) {
+            return;
+        }
+        guard.settings.window_bounds = Some(bounds);
+        guard.settings.save(&guard.settings_path);
+    }
 }
 
 fn kind_label(kind: Option<Kind>) -> String {
@@ -849,15 +863,6 @@ impl BusEngine {
             }
         }
         changed
-    }
-
-    pub fn handle_foreground_app(&mut self, exe: &str) -> bool {
-        let norm = secbird_core::profile::normalize_app(exe);
-        if norm.is_empty() {
-            return false;
-        }
-        smoother::notify_foreground_changed(&norm, win_host::is_foreground_fullscreen());
-        self.handle_foreground_app_normalized(&norm)
     }
 
     fn find_device(&self, device_key: Option<&str>) -> Result<usize, CommandError> {
@@ -1352,6 +1357,7 @@ impl BusEngine {
             }
             BusCommand::UpdateSettings { mut settings } => {
                 settings.normalize();
+                settings.window_bounds = self.settings.window_bounds;
                 if settings.battery_warning_at != self.settings.battery_warning_at
                     || settings.battery_warning != self.settings.battery_warning
                 {
@@ -2038,11 +2044,14 @@ mod tests {
     use secbird_core::sim;
 
     fn test_bus() -> (BusEngine, PathBuf) {
+        static TEST_SEQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(1);
         let db = Db::builtin().unwrap();
         let dev = sim::open_preset("naga", &db).expect("simulated naga");
+        let seq = TEST_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
-            "grip-bus-v2-{}-{}.json",
+            "grip-bus-v2-{}-{}-{}.json",
             std::process::id(),
+            seq,
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |d| d.as_nanos())

@@ -32,6 +32,7 @@ import {
   Button,
   ChoiceChips,
   CommandPalette,
+  Inline,
   Popover,
   ScreenGuide,
   SegmentedControl,
@@ -54,7 +55,12 @@ export type NavSection = "buttons" | "performance" | "motion" | "profiles" | "ma
 
 export function WorkspaceShell({
   workspace,
+  appVersion,
   errorMsg,
+  canRetryError,
+  onRetryError,
+  onDismissError,
+  onNotify,
   statusToast,
   toastKey = 0,
   onClearToast,
@@ -97,6 +103,11 @@ export function WorkspaceShell({
   onSyncLighting,
   onUpdateSettings,
   onApplyRawAccel,
+  onDiscardRawAccel,
+  onResetDesktopMotion,
+  onResetRawAccel,
+  onResetPerformance,
+  onResetAppSettings,
   onOpenRawAccelDownload,
   onRefreshMotionStatus,
   onCheckFirmware,
@@ -106,7 +117,12 @@ export function WorkspaceShell({
   onRedo,
 }: {
   workspace: WorkspaceSnapshot | null;
+  appVersion: string;
   errorMsg: string | null;
+  canRetryError: boolean;
+  onRetryError: () => void;
+  onDismissError: () => void;
+  onNotify: (msg: string) => void;
   statusToast: string | null;
   toastKey?: number;
   onClearToast: () => void;
@@ -149,6 +165,11 @@ export function WorkspaceShell({
   onSyncLighting: (color?: string) => void;
   onUpdateSettings: (settings: AppSettings) => void;
   onApplyRawAccel: (settings: RawAccelSettings) => void;
+  onDiscardRawAccel: () => void;
+  onResetDesktopMotion: () => void;
+  onResetRawAccel: () => void;
+  onResetPerformance: () => void;
+  onResetAppSettings: () => void;
   onOpenRawAccelDownload: () => void;
   onRefreshMotionStatus: () => void;
   onCheckFirmware: () => void;
@@ -433,6 +454,7 @@ export function WorkspaceShell({
 
         <ScreenGuide
           triggerLabel={vocab.screenGuideTrigger}
+          shortcutsHint={vocab.shortcutsSummary}
           open={guideOpen}
           onOpenChange={(open) => onGuideOpenChange?.(open)}
           {...vocab.guides[section]}
@@ -512,9 +534,21 @@ export function WorkspaceShell({
     >
       {errorMsg ? (
         <SurfaceCard>
-          <Badge tone="danger" showDot={true}>
-            {errorMsg}
-          </Badge>
+          <Inline gap="2" justify="between" wrap={true}>
+            <Badge tone="danger" showDot={true}>
+              {errorMsg}
+            </Badge>
+            <Inline gap="1" wrap={false}>
+              {canRetryError ? (
+                <Button variant="secondary" size="sm" onClick={onRetryError}>
+                  {vocab.retry}
+                </Button>
+              ) : null}
+              <Button variant="ghost" size="sm" iconOnly={true} onClick={onDismissError} aria-label={vocab.dismiss} title={vocab.dismiss}>
+                <X size={15} strokeWidth={2} />
+              </Button>
+            </Inline>
+          </Inline>
         </SurfaceCard>
       ) : null}
 
@@ -566,6 +600,7 @@ export function WorkspaceShell({
           onSelectPolling={onSelectPolling}
           onSetSleep={onSetSleep}
           onSetScroll={onSetScroll}
+          onResetPerformance={onResetPerformance}
         />
       ) : null}
 
@@ -581,6 +616,9 @@ export function WorkspaceShell({
           onApplyRawAccel={onApplyRawAccel}
           applyingRawAccel={applyingRawAccel}
           hasUnappliedRawAccel={hasUnappliedRawAccel}
+          onDiscardRawAccel={onDiscardRawAccel}
+          onResetDesktopMotion={onResetDesktopMotion}
+          onResetRawAccel={onResetRawAccel}
           onOpenRawAccelDownload={onOpenRawAccelDownload}
           onRefreshMotionStatus={onRefreshMotionStatus}
           onSelectPolling={onSelectPolling}
@@ -600,6 +638,7 @@ export function WorkspaceShell({
           onSetProfileApps={onSetProfileApps}
           onExportProfiles={onExportProfiles}
           onImportProfiles={onImportProfiles}
+          onNotify={onNotify}
         />
       ) : null}
 
@@ -629,11 +668,13 @@ export function WorkspaceShell({
       {section === "settings" && settings ? (
         <SettingsView
           settings={settings}
+          appVersion={appVersion}
           device={device}
           synapseRunning={workspace?.synapseRunning ?? []}
           firmwareResult={firmwareResult}
           vocab={vocab}
           onUpdateSettings={onUpdateSettings}
+          onResetAppSettings={onResetAppSettings}
           onCheckFirmware={onCheckFirmware}
           onCopyReport={onCopyReport}
           onOpenFolder={onOpenFolder}
@@ -658,6 +699,7 @@ export function WorkspaceShell({
         title={vocab.quickCommands}
         placeholder={vocab.searchPlaceholder}
         closeLabel={vocab.cancel}
+        emptyLabel={vocab.noSearchResults}
         items={paletteItems}
       />
     </AppShell>

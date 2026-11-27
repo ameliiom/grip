@@ -4,6 +4,7 @@ import type { DeviceSnapshot } from "../acl/transport";
 import {
   Badge,
   Button,
+  ConfirmButton,
   HelpTip,
   Inline,
   Stack,
@@ -137,14 +138,16 @@ export function MacrosView({
                       <span className="text-sm font-bold">{m.name}</span>
                       <span className="text-xs text-[var(--fg-muted)]">{m.steps}</span>
                     </Stack>
-                    <Button
+                    <ConfirmButton
                       variant="danger"
                       size="sm"
-                      aria-label={vocab.deleteProfile}
-                      onClick={() => onDeleteMacro(m.id)}
-                    >
-                      <Trash2 size={14} strokeWidth={2} />
-                    </Button>
+                      iconOnly={true}
+                      icon={<Trash2 size={14} strokeWidth={2} />}
+                      label={vocab.deleteProfile}
+                      confirmLabel={vocab.confirmDelete}
+                      ariaLabel={`${vocab.deleteProfile}: ${m.name}`}
+                      onConfirm={() => onDeleteMacro(m.id)}
+                    />
                   </Inline>
                 </SurfaceInset>
               ))}

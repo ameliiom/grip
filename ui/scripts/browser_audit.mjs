@@ -513,6 +513,37 @@ export default async function audit(b) {
         await waitRaf();
       }
     }
+    const confirmTrigger = [...document.querySelectorAll('[data-confirm-action]')].find((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && !el.disabled;
+    });
+    if (confirmTrigger) {
+      const dialogsBefore = document.querySelectorAll('[role="dialog"]').length;
+      const framesBeforeConfirm = snapFrames();
+      confirmTrigger.click();
+      await waitRaf();
+      if (confirmTrigger.getAttribute('data-armed') !== 'true') {
+        out.push('confirm-action-did-not-arm');
+      }
+      if (document.querySelectorAll('[role="dialog"]').length > dialogsBefore) {
+        out.push('confirm-action-opened-modal');
+      }
+      const framesAfterConfirm = snapFrames();
+      if (framesBeforeConfirm.length > 0 && framesAfterConfirm.length === framesBeforeConfirm.length) {
+        for (let i = 0; i < framesAfterConfirm.length; i++) {
+          const a = framesBeforeConfirm[i], c = framesAfterConfirm[i];
+          if (Math.abs(c.x - a.x) > 4 || Math.abs(c.y - a.y) > 4 || Math.abs(c.w - a.w) > 4 || Math.abs(c.h - a.h) > 4) {
+            out.push('confirm-action-shifted-layout:' + Math.round(Math.abs(c.h - a.h)) + 'px');
+            break;
+          }
+        }
+      }
+      confirmTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await waitRaf();
+      if (confirmTrigger.getAttribute('data-armed') === 'true') {
+        out.push('confirm-action-did-not-disarm');
+      }
+    }
     const baseNav = snapNav();
     const navButtons = [...document.querySelectorAll('[data-shift-probe="nav"] button, header nav button')].filter((el) => {
       const r = el.getBoundingClientRect();

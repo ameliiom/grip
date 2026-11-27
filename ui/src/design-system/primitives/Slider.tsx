@@ -10,6 +10,8 @@ export function Slider({
   disabled = false,
   dir = "ltr",
   stops,
+  defaultValue,
+  resetHint,
 }: {
   value: number;
   min: number;
@@ -20,6 +22,8 @@ export function Slider({
   disabled?: boolean;
   dir?: "ltr" | "rtl";
   stops?: readonly number[];
+  defaultValue?: number;
+  resetHint?: string;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const clamped = Math.min(max, Math.max(min, value));
@@ -44,19 +48,28 @@ export function Slider({
       ? [min, ...stops.filter((s) => s > min && s < max), max]
       : null;
 
-  const pct = (() => {
-    if (!effectiveStops) return ((clamped - min) / span) * 100;
+  const valueToPct = (raw: number) => {
+    const c = Math.min(max, Math.max(min, raw));
+    if (!effectiveStops) return ((c - min) / span) * 100;
     const segs = effectiveStops.length - 1;
     for (let i = 0; i < segs; i++) {
       const a = effectiveStops[i]!;
       const b = effectiveStops[i + 1]!;
-      if (clamped <= b) {
-        const local = b > a ? (clamped - a) / (b - a) : 0;
+      if (c <= b) {
+        const local = b > a ? (c - a) / (b - a) : 0;
         return ((i + local) / segs) * 100;
       }
     }
     return 100;
-  })();
+  };
+
+  const pct = valueToPct(clamped);
+  const showDefaultMarker =
+    defaultValue !== undefined &&
+    defaultValue >= min &&
+    defaultValue <= max &&
+    Math.abs(clamped - defaultValue) >= step;
+  const defaultPct = showDefaultMarker ? valueToPct(defaultValue) : 0;
 
   const snapValue = useCallback(
     (raw: number) => {
@@ -118,6 +131,12 @@ export function Slider({
       aria-valuenow={clamped}
       aria-disabled={disabled}
       dir={dir}
+      title={defaultValue !== undefined ? resetHint : undefined}
+      onDoubleClick={() => {
+        if (!disabled && defaultValue !== undefined) {
+          emitIfChanged(snapValue(defaultValue));
+        }
+      }}
       onKeyDown={onKeyDown}
       onPointerDown={(e) => {
         if (disabled) return;
@@ -138,6 +157,13 @@ export function Slider({
           className="h-full bg-[var(--brand)] rounded-[var(--radius-pill)]"
           style={{ width: `${pct}%` }}
         />
+        {showDefaultMarker ? (
+          <div
+            aria-hidden="true"
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[var(--fg-muted)] opacity-60 pointer-events-none"
+            style={dir === "rtl" ? { right: `${defaultPct}%`, transform: "translate(50%, -50%)" } : { left: `${defaultPct}%` }}
+          />
+        ) : null}
       </div>
       <div
         className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-[var(--surface-0)] border-2 border-[var(--brand)] pointer-events-none"

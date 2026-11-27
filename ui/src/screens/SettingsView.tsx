@@ -1,10 +1,11 @@
-import { CheckCircle2, ChevronDown, Copy, FolderOpen, Monitor, Moon, Palette, RefreshCw, Sun } from "lucide-react";
+import { CheckCircle2, ChevronDown, Copy, FolderOpen, Monitor, Moon, Palette, RefreshCw, RotateCcw, Sun } from "lucide-react";
 import { useState } from "react";
 import type { AppSettings, DeviceSnapshot, FirmwareCheckResult } from "../acl/transport";
 import { BrandColorPicker } from "../design-system/BrandColorPicker";
 import {
   Badge,
   Button,
+  ConfirmButton,
   HelpTip,
   Inline,
   SegmentedControl,
@@ -18,21 +19,25 @@ import { cleanDeviceDisplayName, type Locale, type Vocab } from "../i18n/vocab";
 
 export function SettingsView({
   settings,
+  appVersion,
   device,
   synapseRunning,
   firmwareResult,
   vocab,
   onUpdateSettings,
+  onResetAppSettings,
   onCheckFirmware,
   onCopyReport,
   onOpenFolder,
 }: {
   settings: AppSettings;
+  appVersion: string;
   device: DeviceSnapshot | null;
   synapseRunning: readonly string[];
   firmwareResult: FirmwareCheckResult | null;
   vocab: Vocab;
   onUpdateSettings: (next: AppSettings) => void;
+  onResetAppSettings: () => void;
   onCheckFirmware: () => void;
   onCopyReport: () => Promise<void>;
   onOpenFolder: () => void;
@@ -49,9 +54,20 @@ export function SettingsView({
       {/* Startup & Behavior */}
       <SurfaceCard primaryContent={true} stableFrame={true} className="lg:col-span-7 min-w-0 h-full">
         <Stack gap="2">
-          <Inline gap="2" wrap={false}>
-            <h2 className="text-base font-bold">{vocab.settingsBehaviorTitle}</h2>
-            <HelpTip {...vocab.help.settingsBehavior} side="bottom" />
+          <Inline gap="2" justify="between" wrap={true}>
+            <Inline gap="2" wrap={false}>
+              <h2 className="text-base font-bold">{vocab.settingsBehaviorTitle}</h2>
+              <HelpTip {...vocab.help.settingsBehavior} side="bottom" />
+            </Inline>
+            <ConfirmButton
+              variant="ghost"
+              size="sm"
+              icon={<RotateCcw size={14} strokeWidth={2} />}
+              label={vocab.resetAppSettings}
+              confirmLabel={vocab.confirmReset}
+              title={vocab.resetAppSettingsTooltip}
+              onConfirm={onResetAppSettings}
+            />
           </Inline>
 
           <SurfaceInset>
@@ -136,6 +152,8 @@ export function SettingsView({
                     min={5}
                     max={50}
                     step={5}
+                    defaultValue={15}
+                    resetHint={vocab.sliderResetHint}
                     value={settings.batteryWarningAt}
                     onChange={(v) => patch({ batteryWarningAt: v })}
                   />
@@ -203,12 +221,33 @@ export function SettingsView({
             <Button variant="ghost" size="md" fullWidth={true} onClick={() => setSupportOpen((s) => !s)}>
               <span className="flex items-center justify-between w-full">
                 <span>{vocab.deviceSupportTitle}</span>
-                <ChevronDown size={16} strokeWidth={2} />
+                <span className="inline-flex items-center gap-2">
+                  <span className="text-xs text-[var(--fg-muted)] tabular-nums" dir="ltr">
+                    v{appVersion}
+                  </span>
+                  <ChevronDown size={16} strokeWidth={2} />
+                </span>
               </span>
             </Button>
 
             {supportOpen ? (
               <Stack gap="4">
+                <SurfaceInset>
+                  <Stack gap="2">
+                    <Inline gap="2" justify="between" wrap={true}>
+                      <span className="text-xs text-[var(--fg-muted)]">{vocab.appVersionLabel}</span>
+                      <span className="text-xs font-semibold tabular-nums" dir="ltr">
+                        Grip v{appVersion}
+                      </span>
+                    </Inline>
+                    <Inline gap="2" justify="between" wrap={true}>
+                      <span className="text-xs text-[var(--fg-muted)]">{vocab.shortcutsTitle}</span>
+                      <span className="text-xs text-[var(--fg)]" dir="ltr">
+                        {vocab.shortcutsSummary}
+                      </span>
+                    </Inline>
+                  </Stack>
+                </SurfaceInset>
                 {device ? (
                   <SurfaceInset>
                     <Stack gap="2">

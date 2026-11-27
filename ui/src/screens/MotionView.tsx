@@ -1,4 +1,4 @@
-import { Activity, Download, Gamepad2, RefreshCw, Sparkles, Zap } from "lucide-react";
+import { Activity, Download, Gamepad2, RefreshCw, RotateCcw, Sparkles, Zap } from "lucide-react";
 import { useMemo } from "react";
 import type {
   AppSettings,
@@ -11,6 +11,7 @@ import type {
 import {
   Badge,
   Button,
+  ConfirmButton,
   HelpTip,
   Inline,
   SegmentedControl,
@@ -39,6 +40,9 @@ export function MotionView({
   onApplyRawAccel,
   applyingRawAccel = false,
   hasUnappliedRawAccel = false,
+  onDiscardRawAccel,
+  onResetDesktopMotion,
+  onResetRawAccel,
   onOpenRawAccelDownload,
   onRefreshMotionStatus,
   onSelectPolling,
@@ -53,6 +57,9 @@ export function MotionView({
   onApplyRawAccel: (raw: RawAccelSettings) => void;
   applyingRawAccel?: boolean;
   hasUnappliedRawAccel?: boolean;
+  onDiscardRawAccel: () => void;
+  onResetDesktopMotion: () => void;
+  onResetRawAccel: () => void;
   onOpenRawAccelDownload: () => void;
   onRefreshMotionStatus: () => void;
   onSelectPolling: (hz: number) => void;
@@ -138,6 +145,15 @@ export function MotionView({
               <Badge tone={smoothBadge.tone} showDot={true}>
                 {smoothBadge.text}
               </Badge>
+              <ConfirmButton
+                variant="ghost"
+                size="sm"
+                iconOnly={true}
+                icon={<RotateCcw size={14} strokeWidth={2} />}
+                label={vocab.resetDefaults}
+                confirmLabel={vocab.confirmReset}
+                onConfirm={onResetDesktopMotion}
+              />
               <Switch
                 ariaLabel={vocab.motionEnableLabel}
                 checked={ds.enabled}
@@ -196,6 +212,8 @@ export function MotionView({
                   min={0}
                   max={100}
                   step={5}
+                  defaultValue={55}
+                  resetHint={vocab.sliderResetHint}
                   value={ds.strength}
                   onChange={(v) => patchDesktop({ strength: v, preset: "custom" })}
                 />
@@ -214,6 +232,8 @@ export function MotionView({
                   min={0}
                   max={100}
                   step={5}
+                  defaultValue={65}
+                  resetHint={vocab.sliderResetHint}
                   value={ds.responsiveness}
                   onChange={(v) => patchDesktop({ responsiveness: v, preset: "custom" })}
                 />
@@ -232,6 +252,8 @@ export function MotionView({
                   min={0}
                   max={50}
                   step={5}
+                  defaultValue={15}
+                  resetHint={vocab.sliderResetHint}
                   value={ds.microPrecision}
                   onChange={(v) => patchDesktop({ microPrecision: v, preset: "custom" })}
                 />
@@ -243,22 +265,17 @@ export function MotionView({
                     <span className="text-xs font-semibold">{vocab.motionRotationLabel}</span>
                     <HelpTip {...vocab.help.motionRotation} />
                   </Inline>
-                  <Inline gap="1" wrap={false}>
-                    <span className="text-xs font-bold tabular-nums" dir="ltr">
-                      {ds.rotationDeg > 0 ? `+${ds.rotationDeg}°` : `${ds.rotationDeg}°`}
-                    </span>
-                    {ds.rotationDeg !== 0 ? (
-                      <Button variant="ghost" size="sm" onClick={() => patchDesktop({ rotationDeg: 0 })}>
-                        <span>{vocab.motionResetRotation}</span>
-                      </Button>
-                    ) : null}
-                  </Inline>
+                  <span className="text-xs font-bold tabular-nums" dir="ltr">
+                    {ds.rotationDeg > 0 ? `+${ds.rotationDeg}°` : `${ds.rotationDeg}°`}
+                  </span>
                 </Inline>
                 <Slider
                   ariaLabel={vocab.motionRotationLabel}
                   min={-25}
                   max={25}
                   step={1}
+                  defaultValue={0}
+                  resetHint={vocab.sliderResetHint}
                   value={ds.rotationDeg}
                   onChange={(v) => patchDesktop({ rotationDeg: v })}
                 />
@@ -366,6 +383,8 @@ export function MotionView({
                       min={0}
                       max={80}
                       step={5}
+                      defaultValue={0}
+                      resetHint={vocab.sliderResetHint}
                       value={ra.outputSmoothingTenths}
                       onChange={(v) => patchRawAccel({ outputSmoothingTenths: v })}
                     />
@@ -386,6 +405,8 @@ export function MotionView({
                       min={25}
                       max={200}
                       step={5}
+                      defaultValue={100}
+                      resetHint={vocab.sliderResetHint}
                       value={ra.sensMultiplierPct}
                       onChange={(v) => patchRawAccel({ sensMultiplierPct: v })}
                     />
@@ -406,6 +427,8 @@ export function MotionView({
                       min={-25}
                       max={25}
                       step={1}
+                      defaultValue={0}
+                      resetHint={vocab.sliderResetHint}
                       value={ra.rotationDeg}
                       onChange={(v) => patchRawAccel({ rotationDeg: v })}
                     />
@@ -413,15 +436,33 @@ export function MotionView({
                 </Stack>
               </SurfaceInset>
 
-              <Button variant="primary" size="md" fullWidth={true} disabled={applyingRawAccel} onClick={() => onApplyRawAccel(ra)}>
-                <span>
-                  {applyingRawAccel
-                    ? vocab.motionRawAccelApplying
-                    : hasUnappliedRawAccel
-                      ? vocab.motionRawAccelApplyDirty
-                      : vocab.motionRawAccelApply}
-                </span>
-              </Button>
+              <div className="flex items-center gap-2 w-full">
+                <div className="flex-1 min-w-0">
+                  <Button variant="primary" size="md" fullWidth={true} disabled={applyingRawAccel} onClick={() => onApplyRawAccel(ra)}>
+                    <span>
+                      {applyingRawAccel
+                        ? vocab.motionRawAccelApplying
+                        : hasUnappliedRawAccel
+                          ? vocab.motionRawAccelApplyDirty
+                          : vocab.motionRawAccelApply}
+                    </span>
+                  </Button>
+                </div>
+                {hasUnappliedRawAccel ? (
+                  <Button variant="secondary" size="md" onClick={onDiscardRawAccel}>
+                    <span>{vocab.discardChanges}</span>
+                  </Button>
+                ) : null}
+                <ConfirmButton
+                  variant="ghost"
+                  size="md"
+                  iconOnly={true}
+                  icon={<RotateCcw size={15} strokeWidth={2} />}
+                  label={vocab.resetDefaults}
+                  confirmLabel={vocab.confirmReset}
+                  onConfirm={onResetRawAccel}
+                />
+              </div>
             </Stack>
           ) : (
             <SurfaceInset>

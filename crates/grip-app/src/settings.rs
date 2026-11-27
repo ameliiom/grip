@@ -111,6 +111,37 @@ impl RawAccelSettings {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowBounds {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    #[serde(default)]
+    pub maximized: bool,
+}
+
+impl WindowBounds {
+    pub fn clamp_to_rect(self, left: i32, top: i32, right: i32, bottom: i32) -> Self {
+        let avail_w = (right - left).max(360) as u32;
+        let avail_h = (bottom - top).max(540) as u32;
+        let width = self.width.max(360).min(avail_w);
+        let height = self.height.max(540).min(avail_h);
+        let max_x = right - width as i32;
+        let max_y = bottom - height as i32;
+        let x = if max_x >= left { self.x.clamp(left, max_x) } else { left };
+        let y = if max_y >= top { self.y.clamp(top, max_y) } else { top };
+        Self {
+            x,
+            y,
+            width,
+            height,
+            maximized: self.maximized,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
@@ -136,6 +167,8 @@ pub struct AppSettings {
     pub desktop_smooth: DesktopSmoothSettings,
     #[serde(default)]
     pub raw_accel: RawAccelSettings,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_bounds: Option<WindowBounds>,
 }
 
 pub fn normalize_theme(raw: &str) -> String {
@@ -212,6 +245,7 @@ impl Default for AppSettings {
             locale: "ar".into(),
             desktop_smooth: DesktopSmoothSettings::default(),
             raw_accel: RawAccelSettings::default(),
+            window_bounds: None,
         }
     }
 }
@@ -311,3 +345,45 @@ pub fn autostart_enabled() -> bool {
 
 #[cfg(not(windows))]
 pub fn set_autostart(_enabled: bool) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn window_bounds_clamp_keeps_window_visible_on_disconnected_or_undersized_screens() {
+        let offscreen = WindowBounds {
+            x: 4200,
+            y: 1600,
+            width: 1100,
+            height: 760,
+            maximized: false,
+        };
+        let clamped = offscreen.clamp_to_rect(0, 0, 1920, 1040);
+        assert_eq!(clamped.x, 820);
+        assert_eq!(clamped.y, 280);
+        assert_eq!(clamped.width, 1100);
+        assert_eq!(clamped.height, 760);
+
+        let tiny = WindowBounds {
+            x: -300,
+            y: -100,
+            width: 120,
+            height: 200,
+            maximized: true,
+        };
+        let clamped_tiny = tiny.clamp_to_rect(0, 0, 1920, 1040);
+        assert_eq!(clamped_tiny.x, 0);
+        assert_eq!(clamped_tiny.y, 0);
+        assert_eq!(clamped_tiny.width, 360);
+        assert_eq!(clamped_tiny.height, 540);
+        assert!(clamped_tiny.maximized);
+    }
+
+    #[test]
+    fn settings_deserialize_without_window_bounds() {
+        let s: AppSettings = serde_json::from_str(r#"{"theme":"dark","locale":"en"}"#).unwrap();
+        assert_eq!(s.theme, "dark");
+        assert!(s.window_bounds.is_none());
+    }
+}

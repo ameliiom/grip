@@ -54,7 +54,7 @@ mod imp {
     use windows_sys::Win32::Graphics::Gdi::{
         BeginPaint, CreateCompatibleDC, CreateDIBSection, CreateFontW, CreateRoundRectRgn, CreateSolidBrush, DeleteDC,
         DeleteObject, DrawTextW, EndPaint, FillRect, GetDC, GetDeviceCaps, GetMonitorInfoW, InvalidateRect,
-        MonitorFromWindow, ReleaseDC, SelectObject, SetBkMode, SetTextColor, SetWindowRgn, BITMAPINFO,
+        MonitorFromRect, MonitorFromWindow, ReleaseDC, SelectObject, SetBkMode, SetTextColor, SetWindowRgn, BITMAPINFO,
         BITMAPINFOHEADER, BI_RGB, CLEARTYPE_QUALITY, CLIP_DEFAULT_PRECIS, DEFAULT_CHARSET, DEFAULT_PITCH,
         DIB_RGB_COLORS, DT_CENTER, DT_SINGLELINE, DT_VCENTER, FF_DONTCARE, FW_SEMIBOLD, HFONT, LOGPIXELSY,
         MONITORINFO, MONITOR_DEFAULTTONEAREST, OUT_DEFAULT_PRECIS, PAINTSTRUCT, TRANSPARENT,
@@ -181,6 +181,39 @@ mod imp {
                 let _ = DwmSetWindowAttribute(hwnd_raw as HWND, 19, &val as *const i32 as *const c_void, 4);
             }
             let _ = DwmSetWindowAttribute(hwnd_raw as HWND, 33, &corner_round as *const i32 as *const c_void, 4);
+        }
+    }
+
+    pub fn clamp_window_bounds(bounds: crate::settings::WindowBounds) -> crate::settings::WindowBounds {
+        if cfg!(test) {
+            return bounds;
+        }
+        unsafe {
+            let rc = RECT {
+                left: bounds.x,
+                top: bounds.y,
+                right: bounds.x.saturating_add(bounds.width.max(360) as i32),
+                bottom: bounds.y.saturating_add(bounds.height.max(540) as i32),
+            };
+            let mut work: RECT = zeroed();
+            let mon = MonitorFromRect(&rc, MONITOR_DEFAULTTONEAREST);
+            let mut got = false;
+            if !mon.is_null() {
+                let mut mi: MONITORINFO = zeroed();
+                mi.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+                if GetMonitorInfoW(mon, &mut mi) != 0 {
+                    work = mi.rcWork;
+                    got = true;
+                }
+            }
+            if !got {
+                SystemParametersInfoW(SPI_GETWORKAREA, 0, &mut work as *mut RECT as _, 0);
+            }
+            if work.right > work.left && work.bottom > work.top {
+                bounds.clamp_to_rect(work.left, work.top, work.right, work.bottom)
+            } else {
+                bounds
+            }
         }
     }
 
@@ -798,11 +831,15 @@ mod imp {
     }
 
     pub fn start_host_monitor(_callbacks: HostCallbacks) {}
+
+    pub fn clamp_window_bounds(bounds: crate::settings::WindowBounds) -> crate::settings::WindowBounds {
+        bounds
+    }
 }
 
 pub use imp::{
-    acquire_single_instance, is_foreground_fullscreen, open_folder, running_apps, set_window_dark_titlebar, show_osd,
-    start_host_monitor, windows_prefers_dark, HostCallbacks,
+    acquire_single_instance, clamp_window_bounds, is_foreground_fullscreen, open_folder, running_apps,
+    set_window_dark_titlebar, show_osd, start_host_monitor, windows_prefers_dark, HostCallbacks,
 };
 
 #[cfg(test)]

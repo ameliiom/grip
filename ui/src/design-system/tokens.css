@@ -30,6 +30,8 @@
   --status-ok: #15803d;
   --status-warn: #a16207;
   --status-danger: #b91c1c;
+  --status-danger-bg: #b91c1c;
+  --status-danger-fg: #ffffff;
   --status-active: #1d4ed8;
   --status-neutral: #52525b;
   --hw-canvas: #f1f2f4;
@@ -55,6 +57,8 @@
   --status-ok: #4ade80;
   --status-warn: #facc15;
   --status-danger: #f87171;
+  --status-danger-bg: #b91c1c;
+  --status-danger-fg: #ffffff;
   --status-active: #60a5fa;
   --status-neutral: #a1a1aa;
   --hw-canvas: #0c0c0f;

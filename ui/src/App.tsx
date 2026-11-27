@@ -43,18 +43,43 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
 };
 
+const VALID_SECTIONS: readonly NavSection[] = [
+  "buttons",
+  "performance",
+  "motion",
+  "profiles",
+  "macros",
+  "lighting",
+  "settings",
+];
+const LAST_SECTION_KEY = "grip.lastSection";
+
+function isValidSection(raw: string): raw is NavSection {
+  return (VALID_SECTIONS as readonly string[]).includes(raw);
+}
+
 function getInitialSection(): NavSection {
   if (typeof window === "undefined") return "buttons";
-  const hash = window.location.hash.replace(/^#/, "") as NavSection;
-  if (["buttons", "performance", "motion", "profiles", "macros", "lighting", "settings"].includes(hash)) {
+  const hash = window.location.hash.replace(/^#/, "");
+  if (isValidSection(hash)) {
     return hash;
+  }
+  try {
+    const saved = window.localStorage.getItem(LAST_SECTION_KEY);
+    if (saved && isValidSection(saved)) {
+      return saved;
+    }
+  } catch {
+    // intentional: storage may be disabled in restricted contexts
   }
   return "buttons";
 }
 
 export function App() {
+  const appVersion = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "1.0.0";
   const [workspace, setWorkspace] = useState<WorkspaceSnapshot | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [canRetryError, setCanRetryError] = useState(false);
   const [toastState, setToastState] = useState<{ id: number; text: string } | null>(null);
   const [firmwareResult, setFirmwareResult] = useState<FirmwareCheckResult | null>(null);
   const [section, setSection] = useState<NavSection>(getInitialSection);
@@ -63,6 +88,9 @@ export function App() {
   const [systemTheme, setSystemTheme] = useState<ThemeMode>(getSystemTheme);
   const [applyingRawAccel, setApplyingRawAccel] = useState(false);
   const [appliedRawAccel, setAppliedRawAccel] = useState<RawAccelSettings | null>(null);
+
+  const lastFailedCmdRef = useRef<{ cmd: BusCommand; toast?: string } | null>(null);
+  const pendingSettingsToastRef = useRef<string | null>(null);
 
   const settings = workspace?.settings ?? DEFAULT_SETTINGS;
   const vocab = VOCAB[settings.locale];
@@ -138,6 +166,11 @@ export function App() {
     setSection(next);
     setGuideOpen(false);
     if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(LAST_SECTION_KEY, next);
+      } catch {
+        // intentional: storage may be disabled in restricted contexts
+      }
       window.location.hash = next;
     }
   };
@@ -151,7 +184,9 @@ export function App() {
     async (cmd: BusCommand, toastOnSuccess?: string) => {
       try {
         setErrorMsg(null);
+        setCanRetryError(false);
         const resp = await executeCommand(cmd);
+        lastFailedCmdRef.current = null;
         setWorkspace(resp.workspace);
         if (!rawAccelInitRef.current) {
           rawAccelInitRef.current = true;
@@ -161,6 +196,8 @@ export function App() {
         if (toastOnSuccess) showToast(toastOnSuccess);
         return resp;
       } catch (err) {
+        lastFailedCmdRef.current = { cmd, toast: toastOnSuccess };
+        setCanRetryError(true);
         setErrorMsg(formatError(err));
         return null;
       }
@@ -168,21 +205,37 @@ export function App() {
     [showToast],
   );
 
+  const handleDismissError = useCallback(() => {
+    setErrorMsg(null);
+    setCanRetryError(false);
+    lastFailedCmdRef.current = null;
+  }, []);
+
+  const handleRetryError = useCallback(() => {
+    const last = lastFailedCmdRef.current;
+    if (last) void run(last.cmd, last.toast);
+  }, [run]);
+
   const flushSettings = useCallback(async () => {
     if (settingsInFlightRef.current) return;
     settingsInFlightRef.current = true;
     try {
       while (pendingSettingsRef.current !== null) {
         const next = pendingSettingsRef.current;
+        const customToast = pendingSettingsToastRef.current;
         pendingSettingsRef.current = null;
+        pendingSettingsToastRef.current = null;
         try {
           setErrorMsg(null);
+          setCanRetryError(false);
           const resp = await executeCommand({ type: "updateSettings", settings: next });
           if (pendingSettingsRef.current === null) {
             setWorkspace(resp.workspace);
-            showToast(VOCAB[resp.workspace.settings.locale].toastAutoSaved);
+            showToast(customToast ?? VOCAB[resp.workspace.settings.locale].toastAutoSaved);
           }
         } catch (err) {
+          lastFailedCmdRef.current = { cmd: { type: "updateSettings", settings: next }, toast: customToast ?? undefined };
+          setCanRetryError(true);
           setErrorMsg(formatError(err));
           pendingSettingsRef.current = null;
         }
@@ -193,9 +246,10 @@ export function App() {
   }, [showToast]);
 
   const handleUpdateSettings = useCallback(
-    (next: AppSettings) => {
+    (next: AppSettings, toastOverride?: string) => {
       setWorkspace((prev) => (prev ? { ...prev, settings: next } : prev));
       pendingSettingsRef.current = next;
+      if (toastOverride) pendingSettingsToastRef.current = toastOverride;
       if (settingsTimerRef.current !== null) {
         window.clearTimeout(settingsTimerRef.current);
       }
@@ -303,25 +357,111 @@ export function App() {
         return;
       }
       const mod = ev.ctrlKey || ev.metaKey;
-      if (mod && ev.key.toLowerCase() === "k") {
+      if (mod && ev.code === "KeyK") {
         ev.preventDefault();
         setPaletteOpen((open) => !open);
         return;
       }
-      if (mod && ev.key.toLowerCase() === "z" && devKey) {
-        ev.preventDefault();
-        if (ev.shiftKey) void run({ type: "redo", deviceKey: devKey });
-        else void run({ type: "undo", deviceKey: devKey });
+      const target = ev.target as HTMLElement | null;
+      const inEditable = Boolean(target?.closest("input, textarea, [contenteditable='true']"));
+      if (!inEditable && mod && devKey) {
+        if (ev.code === "KeyZ") {
+          ev.preventDefault();
+          if (ev.shiftKey) void run({ type: "redo", deviceKey: devKey });
+          else void run({ type: "undo", deviceKey: devKey });
+        } else if (ev.code === "KeyY") {
+          ev.preventDefault();
+          void run({ type: "redo", deviceKey: devKey });
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [devKey, run]);
 
+  const handleApplyRawAccel = useCallback(
+    (raw: RawAccelSettings, toastMsg?: string) => {
+      if (applyingRawAccel) return;
+      setApplyingRawAccel(true);
+      void run({ type: "applyRawAccel", settings: raw }, toastMsg ?? vocab.toastRawAccelApplied)
+        .then((resp) => {
+          if (resp) setAppliedRawAccel(resp.workspace.settings.rawAccel);
+        })
+        .finally(() => setApplyingRawAccel(false));
+    },
+    [applyingRawAccel, run, vocab.toastRawAccelApplied],
+  );
+
+  const handleDiscardRawAccel = useCallback(() => {
+    if (!workspace || !appliedRawAccel) return;
+    handleUpdateSettings({ ...workspace.settings, rawAccel: appliedRawAccel }, vocab.toastDiscardedChanges);
+  }, [appliedRawAccel, handleUpdateSettings, vocab.toastDiscardedChanges, workspace]);
+
+  const handleResetDesktopMotion = useCallback(() => {
+    handleUpdateSettings({ ...settings, desktopSmooth: { ...DEFAULT_SETTINGS.desktopSmooth } }, vocab.toastResetDefaults);
+  }, [handleUpdateSettings, settings, vocab.toastResetDefaults]);
+
+  const handleResetRawAccel = useCallback(() => {
+    const defRaw = { ...DEFAULT_SETTINGS.rawAccel };
+    if (workspace?.rawAccelStatus.driverRunning) {
+      handleApplyRawAccel(defRaw, vocab.toastResetDefaults);
+    } else {
+      handleUpdateSettings({ ...settings, rawAccel: defRaw }, vocab.toastResetDefaults);
+    }
+  }, [handleApplyRawAccel, handleUpdateSettings, settings, vocab.toastResetDefaults, workspace?.rawAccelStatus.driverRunning]);
+
+  const handleResetPerformance = useCallback(async () => {
+    const dev = workspace?.activeDevice;
+    if (!dev) return;
+    const caps = dev.capabilities;
+    const snapDpi = (v: number) => {
+      const c = Math.min(caps.dpiMax, Math.max(caps.dpiMin, v));
+      return caps.dpiMin + Math.round((c - caps.dpiMin) / caps.dpiStep) * caps.dpiStep;
+    };
+    const stages: [number, number][] = [800, 1600, 2400, 3200]
+      .slice(0, Math.max(1, dev.dpi.maxStages))
+      .map((v) => {
+        const s = snapDpi(v);
+        return [s, s];
+      });
+    await run({
+      type: "setDpiStages",
+      deviceKey: dev.deviceKey,
+      activeStage: Math.min(2, stages.length),
+      stages,
+    });
+    if (caps.pollingOptions.length > 0 && dev.pollingHz !== null) {
+      const targetHz = caps.pollingOptions.includes(1000)
+        ? 1000
+        : (caps.pollingOptions[caps.pollingOptions.length - 1] ?? dev.pollingHz);
+      if (dev.pollingHz !== targetHz) {
+        await run({ type: "setPolling", deviceKey: dev.deviceKey, hz: targetHz });
+      }
+    }
+    if (caps.sleepMaxMinutes && dev.sleepMinutes !== null) {
+      await run({
+        type: "setSleep",
+        deviceKey: dev.deviceKey,
+        minutes: Math.min(caps.sleepMaxMinutes, 5),
+        autoSleep: caps.hasAutoSleep ? false : undefined,
+      });
+    }
+    showToast(vocab.toastResetDefaults);
+  }, [run, showToast, vocab.toastResetDefaults, workspace?.activeDevice]);
+
+  const handleResetAppSettings = useCallback(() => {
+    handleUpdateSettings({ ...DEFAULT_SETTINGS, locale: settings.locale }, vocab.toastResetDefaults);
+  }, [handleUpdateSettings, settings.locale, vocab.toastResetDefaults]);
+
   return (
     <WorkspaceShell
       workspace={workspace}
+      appVersion={appVersion}
       errorMsg={errorMsg}
+      canRetryError={canRetryError}
+      onRetryError={handleRetryError}
+      onDismissError={handleDismissError}
+      onNotify={showToast}
       statusToast={toastState?.text ?? null}
       toastKey={toastState?.id ?? 0}
       onClearToast={() => setToastState(null)}
@@ -385,16 +525,13 @@ export function App() {
       }
       onSetLightingOff={(zone) => void run({ type: "setLightingOff", deviceKey: devKey, zone }, vocab.toastAppliedToMouse)}
       onSyncLighting={(color) => void run({ type: "syncLighting", color }, vocab.toastAppliedToMouse)}
-      onUpdateSettings={handleUpdateSettings}
-      onApplyRawAccel={(raw: RawAccelSettings) => {
-        if (applyingRawAccel) return;
-        setApplyingRawAccel(true);
-        void run({ type: "applyRawAccel", settings: raw }, vocab.toastRawAccelApplied)
-          .then((resp) => {
-            if (resp) setAppliedRawAccel(resp.workspace.settings.rawAccel);
-          })
-          .finally(() => setApplyingRawAccel(false));
-      }}
+      onUpdateSettings={(next) => handleUpdateSettings(next)}
+      onApplyRawAccel={(raw: RawAccelSettings) => handleApplyRawAccel(raw)}
+      onDiscardRawAccel={handleDiscardRawAccel}
+      onResetDesktopMotion={handleResetDesktopMotion}
+      onResetRawAccel={handleResetRawAccel}
+      onResetPerformance={() => void handleResetPerformance()}
+      onResetAppSettings={handleResetAppSettings}
       onOpenRawAccelDownload={() => void run({ type: "openRawAccelDownload" })}
       onRefreshMotionStatus={() => void run({ type: "refreshMotionStatus" })}
       onCheckFirmware={() => void run({ type: "checkFirmware", deviceKey: devKey })}

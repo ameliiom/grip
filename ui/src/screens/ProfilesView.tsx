@@ -1,11 +1,12 @@
-import { Check, Copy, Download, FolderPlus, Gamepad2, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Check, Copy, Download, FolderPlus, Gamepad2, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { useState } from "react";
 import type { DeviceSnapshot, RunningApp } from "../acl/transport";
 import {
   Button,
+  ConfirmButton,
+  FileImportButton,
   HelpTip,
   Inline,
-  Popover,
   Stack,
   SurfaceCard,
   TextInput,
@@ -26,6 +27,7 @@ export function ProfilesView({
   onSetProfileApps,
   onExportProfiles,
   onImportProfiles,
+  onNotify,
 }: {
   device: DeviceSnapshot;
   runningApps: readonly RunningApp[];
@@ -38,15 +40,11 @@ export function ProfilesView({
   onSetProfileApps: (name: string, apps: string[]) => void;
   onExportProfiles: () => Promise<string | null>;
   onImportProfiles: (json: string) => void;
+  onNotify: (msg: string) => void;
 }) {
-  const [newName, setNewName] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [renameValue, setRenameValue] = useState(device.activeProfile);
+  const [inlineMode, setInlineMode] = useState<"create" | "rename" | null>(null);
+  const [draftName, setDraftName] = useState("");
   const [customApp, setCustomApp] = useState("");
-  const [importOpen, setImportOpen] = useState(false);
-  const [importText, setImportText] = useState("");
-  const [exportedNote, setExportedNote] = useState(false);
 
   const activeProfile =
     device.profiles.find((p) => p.name === device.activeProfile) ?? device.profiles[0];
@@ -80,12 +78,31 @@ export function ProfilesView({
     setCustomApp("");
   };
 
+  const submitInline = () => {
+    const clean = draftName.trim();
+    if (!clean) return;
+    if (inlineMode === "create") {
+      onCreateProfile(clean);
+    } else if (inlineMode === "rename" && activeProfile) {
+      onRenameProfile(activeProfile.name, clean);
+    }
+    setDraftName("");
+    setInlineMode(null);
+  };
+
   const handleExport = async () => {
     const text = await onExportProfiles();
-    if (text && navigator.clipboard) {
-      await navigator.clipboard.writeText(text);
-      setExportedNote(true);
-    }
+    if (!text) return;
+    const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "grip-profiles.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    onNotify(vocab.toastExportedFile);
   };
 
   const duplicateActive = () => {
@@ -102,7 +119,7 @@ export function ProfilesView({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 items-stretch">
-      {/* Profile Master List & Actions */}
+      {/* Profile Master List & Zero-Modal Inline Actions */}
       <SurfaceCard primaryContent={true} stableFrame={true} className="lg:col-span-5 min-w-0 h-full flex flex-col justify-between">
         <Stack gap="4" className="flex-1 justify-between">
           <Stack gap="4">
@@ -113,39 +130,61 @@ export function ProfilesView({
                 <HelpTip {...vocab.help.profilesList} side="bottom" />
               </Inline>
 
-              <Popover
-                open={createOpen}
-                onOpenChange={setCreateOpen}
-                trigger={
-                  <Button variant="secondary" size="sm">
-                    <FolderPlus size={15} strokeWidth={2} />
-                    <span>{vocab.newProfile}</span>
-                  </Button>
-                }
+              <Button
+                variant="secondary"
+                size="sm"
+                active={inlineMode === "create"}
+                onClick={() => {
+                  if (inlineMode === "create") {
+                    setInlineMode(null);
+                    setDraftName("");
+                  } else {
+                    setDraftName("");
+                    setInlineMode("create");
+                  }
+                }}
               >
-                <Stack gap="2">
-                  <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.newProfile}</span>
+                <FolderPlus size={15} strokeWidth={2} />
+                <span>{vocab.newProfile}</span>
+              </Button>
+            </Inline>
+
+            {inlineMode === "create" ? (
+              <div className="flex items-center gap-1.5 w-full">
+                <div className="flex-1 min-w-0">
                   <TextInput
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") submitInline();
+                      else if (e.key === "Escape") {
+                        setInlineMode(null);
+                        setDraftName("");
+                      }
+                    }}
                     placeholder={vocab.profileNamePlaceholder}
                     aria-label={vocab.profileNamePlaceholder}
+                    autoFocus
                   />
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={!newName.trim()}
-                    onClick={() => {
-                      onCreateProfile(newName);
-                      setNewName("");
-                      setCreateOpen(false);
-                    }}
-                  >
-                    {vocab.create}
-                  </Button>
-                </Stack>
-              </Popover>
-            </Inline>
+                </div>
+                <Button variant="primary" size="md" iconOnly={true} disabled={!draftName.trim()} onClick={submitInline} aria-label={vocab.create} title={vocab.create}>
+                  <Check size={15} strokeWidth={2.5} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  iconOnly={true}
+                  onClick={() => {
+                    setInlineMode(null);
+                    setDraftName("");
+                  }}
+                  aria-label={vocab.cancel}
+                  title={vocab.cancel}
+                >
+                  <X size={15} strokeWidth={2} />
+                </Button>
+              </div>
+            ) : null}
 
             <Stack gap="2">
               {device.profiles.map((p) => {
@@ -180,18 +219,18 @@ export function ProfilesView({
                         className={isActive ? "invisible pointer-events-none select-none shrink-0" : "shrink-0"}
                         aria-hidden={isActive || undefined}
                       >
-                        <Button
+                        <ConfirmButton
                           variant="ghost"
                           size="md"
                           iconOnly={true}
                           tabIndex={isActive ? -1 : undefined}
                           disabled={isActive}
-                          aria-label={`${vocab.deleteProfile}: ${p.name}`}
-                          title={vocab.deleteProfile}
-                          onClick={() => onDeleteProfile(p.name)}
-                        >
-                          <Trash2 size={15} strokeWidth={2} />
-                        </Button>
+                          icon={<Trash2 size={15} strokeWidth={2} />}
+                          label={vocab.deleteProfile}
+                          confirmLabel={vocab.confirmDelete}
+                          ariaLabel={`${vocab.deleteProfile}: ${p.name}`}
+                          onConfirm={() => onDeleteProfile(p.name)}
+                        />
                       </div>
                     ) : null}
                   </div>
@@ -203,85 +242,86 @@ export function ProfilesView({
           <Stack gap="4">
             {activeProfile ? (
               <div className="pt-3 border-t border-[var(--border)] flex flex-wrap items-center gap-2">
-                <Popover
-                  open={renameOpen}
-                  onOpenChange={(o) => {
-                    if (o) setRenameValue(activeProfile.name);
-                    setRenameOpen(o);
-                  }}
-                  trigger={
-                    <Button variant="secondary" size="sm">
-                      <Pencil size={14} strokeWidth={2} />
-                      <span>{vocab.renameProfile}</span>
+                {inlineMode === "rename" ? (
+                  <div className="flex items-center gap-1.5 w-full">
+                    <div className="flex-1 min-w-0">
+                      <TextInput
+                        value={draftName}
+                        onChange={(e) => setDraftName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") submitInline();
+                          else if (e.key === "Escape") {
+                            setInlineMode(null);
+                            setDraftName("");
+                          }
+                        }}
+                        placeholder={vocab.profileNamePlaceholder}
+                        aria-label={vocab.renameProfile}
+                        autoFocus
+                      />
+                    </div>
+                    <Button variant="primary" size="md" iconOnly={true} disabled={!draftName.trim()} onClick={submitInline} aria-label={vocab.renameProfile} title={vocab.renameProfile}>
+                      <Check size={15} strokeWidth={2.5} />
                     </Button>
-                  }
-                >
-                  <Stack gap="2">
-                    <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.renameProfile}</span>
-                    <TextInput
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      placeholder={vocab.profileNamePlaceholder}
-                      aria-label={vocab.renameProfile}
-                    />
+                    <Button
+                      variant="ghost"
+                      size="md"
+                      iconOnly={true}
+                      onClick={() => {
+                        setInlineMode(null);
+                        setDraftName("");
+                      }}
+                      aria-label={vocab.cancel}
+                      title={vocab.cancel}
+                    >
+                      <X size={15} strokeWidth={2} />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
                     <Button
                       variant="secondary"
                       size="sm"
-                      disabled={!renameValue.trim()}
                       onClick={() => {
-                        onRenameProfile(activeProfile.name, renameValue);
-                        setRenameOpen(false);
+                        setDraftName(activeProfile.name);
+                        setInlineMode("rename");
                       }}
                     >
-                      {vocab.renameProfile}
+                      <Pencil size={14} strokeWidth={2} />
+                      <span>{vocab.renameProfile}</span>
                     </Button>
-                  </Stack>
-                </Popover>
 
-                <Button variant="secondary" size="sm" onClick={duplicateActive}>
-                  <Copy size={14} strokeWidth={2} />
-                  <span>{vocab.duplicateProfile}</span>
-                </Button>
+                    <Button variant="secondary" size="sm" onClick={duplicateActive}>
+                      <Copy size={14} strokeWidth={2} />
+                      <span>{vocab.duplicateProfile}</span>
+                    </Button>
+                  </>
+                )}
               </div>
             ) : null}
 
             <div className="pt-3 border-t border-[var(--border)] flex flex-wrap items-center gap-2">
               <Button variant="ghost" size="sm" onClick={() => void handleExport()}>
-                {exportedNote ? <Copy size={14} strokeWidth={2} /> : <Download size={14} strokeWidth={2} />}
-                <span>{exportedNote ? vocab.reportCopied : vocab.exportProfiles}</span>
+                <Download size={14} strokeWidth={2} />
+                <span>{vocab.exportToFile}</span>
               </Button>
 
-              <Popover
-                open={importOpen}
-                onOpenChange={setImportOpen}
-                trigger={
-                  <Button variant="ghost" size="sm">
-                    <Upload size={14} strokeWidth={2} />
-                    <span>{vocab.importProfiles}</span>
-                  </Button>
-                }
-              >
-                <Stack gap="2">
-                  <TextInput
-                    value={importText}
-                    onChange={(e) => setImportText(e.target.value)}
-                    placeholder={vocab.importProfiles}
-                    aria-label={vocab.importProfiles}
-                  />
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={!importText.trim()}
-                    onClick={() => {
-                      onImportProfiles(importText);
-                      setImportText("");
-                      setImportOpen(false);
-                    }}
-                  >
-                    {vocab.importProfiles}
-                  </Button>
-                </Stack>
-              </Popover>
+              <FileImportButton
+                variant="ghost"
+                size="sm"
+                accept=".json,application/json"
+                icon={<Upload size={14} strokeWidth={2} />}
+                label={vocab.importFromFile}
+                onReadText={(text) => {
+                  try {
+                    JSON.parse(text);
+                    onImportProfiles(text);
+                  } catch {
+                    onNotify(vocab.toastInvalidImport);
+                  }
+                }}
+                onError={() => onNotify(vocab.toastInvalidImport)}
+              />
             </div>
           </Stack>
         </Stack>
@@ -334,6 +374,9 @@ export function ProfilesView({
               <TextInput
                 value={customApp}
                 onChange={(e) => setCustomApp(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && customApp.trim()) addCustomApp();
+                }}
                 placeholder={vocab.customAppPlaceholder}
                 aria-label={vocab.customAppPlaceholder}
               />

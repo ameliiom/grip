@@ -641,6 +641,26 @@ export interface Vocab {
   toastButtonSaved: string;
   toastButtonReset: string;
   toastProfileUpdated: string;
+  resetDefaults: string;
+  confirmReset: string;
+  confirmDelete: string;
+  confirmRestore: string;
+  discardChanges: string;
+  retry: string;
+  dismiss: string;
+  sliderResetHint: string;
+  noSearchResults: string;
+  shortcutsTitle: string;
+  shortcutsSummary: string;
+  appVersionLabel: string;
+  resetAppSettings: string;
+  resetAppSettingsTooltip: string;
+  toastResetDefaults: string;
+  toastDiscardedChanges: string;
+  toastExportedFile: string;
+  toastInvalidImport: string;
+  importFromFile: string;
+  exportToFile: string;
   guides: Record<"buttons" | "performance" | "motion" | "profiles" | "macros" | "lighting" | "settings", ScreenGuideCopy>;
   help: {
     buttonsLayer: HelpTipCopy;
@@ -886,6 +906,26 @@ export const VOCAB: Record<Locale, Vocab> = {
     toastButtonSaved: "تم حفظ وظيفة الزر",
     toastButtonReset: "تمت إعادة الزر للافتراضي",
     toastProfileUpdated: "تم تحديث البروفايل",
+    resetDefaults: "إعادة للافتراضي",
+    confirmReset: "تأكيد الإعادة؟",
+    confirmDelete: "حذف؟",
+    confirmRestore: "تأكيد الاسترجاع؟",
+    discardChanges: "تراجع",
+    retry: "إعادة المحاولة",
+    dismiss: "إغلاق",
+    sliderResetHint: "انقر مرتين للإرجاع للافتراضي",
+    noSearchResults: "لا توجد نتائج مطابقة",
+    shortcutsTitle: "اختصارات الكيبورد",
+    shortcutsSummary: "Ctrl+K بحث · Ctrl+Z تراجع · Ctrl+Y إعادة · F1 شرح",
+    appVersionLabel: "إصدار التطبيق",
+    resetAppSettings: "إعادة إعدادات التطبيق",
+    resetAppSettingsTooltip: "يعيد إعدادات المظهر والسلوك والتنعيم للافتراضي بدون مسح بروفايلات الماوس",
+    toastResetDefaults: "تمت الإعادة للوضع الافتراضي",
+    toastDiscardedChanges: "تم التراجع عن التعديلات غير المطبّقة",
+    toastExportedFile: "تم حفظ ملف النسخة الاحتياطية",
+    toastInvalidImport: "ملف النسخة غير صالح",
+    importFromFile: "استيراد ملف",
+    exportToFile: "حفظ ملف",
     guides: {
       buttons: {
         title: "تخصيص الأزرار",
@@ -1269,6 +1309,26 @@ export const VOCAB: Record<Locale, Vocab> = {
     toastButtonSaved: "Button action saved",
     toastButtonReset: "Button reset to default",
     toastProfileUpdated: "Profile updated",
+    resetDefaults: "Reset defaults",
+    confirmReset: "Confirm reset?",
+    confirmDelete: "Delete?",
+    confirmRestore: "Confirm restore?",
+    discardChanges: "Discard",
+    retry: "Retry",
+    dismiss: "Dismiss",
+    sliderResetHint: "Double-click to reset to default",
+    noSearchResults: "No matching results",
+    shortcutsTitle: "Keyboard shortcuts",
+    shortcutsSummary: "Ctrl+K Search · Ctrl+Z Undo · Ctrl+Y Redo · F1 Guide",
+    appVersionLabel: "App version",
+    resetAppSettings: "Reset app settings",
+    resetAppSettingsTooltip: "Resets app appearance, behavior, and smoothing without deleting mouse profiles",
+    toastResetDefaults: "Restored to defaults",
+    toastDiscardedChanges: "Discarded unapplied changes",
+    toastExportedFile: "Backup file saved",
+    toastInvalidImport: "Invalid backup file",
+    importFromFile: "Import file",
+    exportToFile: "Export file",
     guides: {
       buttons: {
         title: "Buttons",

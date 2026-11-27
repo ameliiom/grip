@@ -2,6 +2,8 @@ export { Badge, type StatusTone } from "./Badge";
 export { Button, type ButtonVariant, type ControlSize } from "./Button";
 export { ChoiceChips, type ChipOption } from "./ChoiceChips";
 export { CommandPalette, type PaletteItem } from "./CommandPalette";
+export { ConfirmButton, type ConfirmVariant } from "./ConfirmButton";
+export { FileImportButton } from "./FileImportButton";
 export { HelpTip } from "./HelpTip";
 export { TextInput } from "./Input";
 export { AppShell, Inline, Stack, SurfaceCard, SurfaceInset } from "./Layout";

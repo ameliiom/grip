@@ -10,16 +10,51 @@ mod smoother;
 mod win_host;
 
 use bus::{AppBus, BusCommand, BusResponse, CommandError};
+use settings::WindowBounds;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
 const TRAY_ID: &str = "main-tray";
 
 struct QuitRequested(AtomicBool);
 struct LastTraySummary(std::sync::Mutex<Option<bus::TraySummary>>);
+struct LastNormalBounds(std::sync::Mutex<Option<WindowBounds>>);
+
+fn record_normal_bounds(app: &AppHandle, win: &WebviewWindow) {
+    if win.is_minimized().unwrap_or(false) || win.is_maximized().unwrap_or(false) {
+        return;
+    }
+    if let (Ok(pos), Ok(size)) = (win.outer_position(), win.inner_size()) {
+        if size.width >= 360 && size.height >= 540 {
+            let state = app.state::<LastNormalBounds>();
+            let mut guard = state.0.lock().unwrap_or_else(|p| p.into_inner());
+            *guard = Some(WindowBounds {
+                x: pos.x,
+                y: pos.y,
+                width: size.width,
+                height: size.height,
+                maximized: false,
+            });
+        }
+    }
+}
+
+fn capture_window_bounds(app: &AppHandle, win: &WebviewWindow) -> Option<WindowBounds> {
+    let maximized = win.is_maximized().unwrap_or(false);
+    record_normal_bounds(app, win);
+    let mut base = *app
+        .state::<LastNormalBounds>()
+        .0
+        .lock()
+        .unwrap_or_else(|p| p.into_inner());
+    if let Some(ref mut b) = base {
+        b.maximized = maximized;
+    }
+    base
+}
 
 fn sync_titlebar_theme(win: &WebviewWindow, bus: &AppBus) {
     #[cfg(windows)]
@@ -98,6 +133,27 @@ fn open_main_window(app: &AppHandle, bus: &AppBus) {
     }
     if let Some(cfg) = app.config().app.windows.first() {
         if let Ok(win) = WebviewWindowBuilder::from_config(app, cfg).and_then(|b| b.build()) {
+            if let Some(saved) = bus.window_bounds() {
+                let b = win_host::clamp_window_bounds(saved);
+                let _ = win.set_size(tauri::PhysicalSize::new(b.width, b.height));
+                let _ = win.set_position(tauri::PhysicalPosition::new(b.x, b.y));
+                if b.maximized {
+                    let _ = win.maximize();
+                }
+            }
+            let app_h = app.clone();
+            let win_h = win.clone();
+            win.on_window_event(move |ev| match ev {
+                WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
+                    record_normal_bounds(&app_h, &win_h);
+                }
+                WindowEvent::CloseRequested { .. } => {
+                    if let Some(bounds) = capture_window_bounds(&app_h, &win_h) {
+                        app_h.state::<Arc<AppBus>>().save_window_bounds(bounds);
+                    }
+                }
+                _ => {}
+            });
             sync_titlebar_theme(&win, bus);
             let _ = win.show();
             let _ = win.set_focus();
@@ -158,12 +214,14 @@ fn main() {
     };
 
     let bus = Arc::new(AppBus::new());
+    let initial_bounds = bus.window_bounds();
     let start_in_tray = std::env::args().any(|a| a == "--tray");
 
     tauri::Builder::default()
         .manage(bus)
         .manage(QuitRequested(AtomicBool::new(false)))
         .manage(LastTraySummary(std::sync::Mutex::new(None)))
+        .manage(LastNormalBounds(std::sync::Mutex::new(initial_bounds)))
         .invoke_handler(tauri::generate_handler![execute_command, window_control])
         .setup(move |app| {
             let app_bus = app.state::<Arc<AppBus>>().inner().clone();
@@ -189,6 +247,11 @@ fn main() {
                             });
                         });
                     } else if id == "quit" {
+                        if let Some(win) = app.get_webview_window("main") {
+                            if let Some(bounds) = capture_window_bounds(app, &win) {
+                                bus.save_window_bounds(bounds);
+                            }
+                        }
                         app.state::<QuitRequested>().0.store(true, Ordering::Relaxed);
                         smoother::shutdown();
                         app.exit(0);

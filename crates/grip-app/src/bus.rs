@@ -477,6 +477,15 @@ impl AppBus {
         };
         let _ = engine.rescan();
         engine.sync_smoother();
+        #[cfg(not(test))]
+        if !engine.simulated && engine.settings.raw_accel.enabled {
+            let ra_cfg = engine.settings.raw_accel.clone();
+            std::thread::spawn(move || {
+                if raw_accel::detect_status().driver_running {
+                    let _ = raw_accel::apply_settings(&ra_cfg);
+                }
+            });
+        }
         Self(Mutex::new(engine))
     }
 

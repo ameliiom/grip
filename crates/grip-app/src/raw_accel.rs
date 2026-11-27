@@ -29,7 +29,7 @@ impl Default for RawAccelStatus {
 
 pub fn build_settings_json(cfg: &RawAccelSettings) -> Value {
     let smooth_ms = (f64::from(cfg.output_smoothing_tenths.min(100)) / 10.0 * 10.0).round() / 10.0;
-    let sens_mult = (f64::from(cfg.sens_multiplier_pct.clamp(25, 200)) / 100.0 * 100.0).round() / 100.0;
+    let output_dpi = f64::from(cfg.sens_multiplier_pct.clamp(25, 200)) * 10.0;
     let motivity = (f64::from(cfg.motivity_pct.clamp(110, 250)) / 100.0 * 100.0).round() / 100.0;
     let sync_speed = f64::from(cfg.sync_speed.clamp(5, 60));
     let rotation = f64::from(cfg.rotation_deg.clamp(-30, 30));
@@ -91,20 +91,22 @@ pub fn build_settings_json(cfg: &RawAccelSettings) -> Value {
                     "data": []
                 },
                 "Input speed calculation parameters": {
-                    "Lp norm": 2.0,
-                    "Input speed smoothing halflife ms": 0.0,
-                    "Sensitivity smoothing halflife ms": 0.0,
-                    "Output smoothing halflife ms": smooth_ms
+                    "Whole/combined accel (set false for 'by component' mode)": true,
+                    "lpNorm": 2.0,
+                    "Time in ms after which an input is weighted at half its original value.": 0.0,
+                    "Time in ms after which scale is weighted at half its original value.": 0.0,
+                    "Time in ms after which an output is weighted at half its original value.": smooth_ms
                 },
-                "Output DPI": 0.0,
+                "Output DPI": output_dpi,
                 "Y/X output DPI ratio (vertical sens multiplier)": 1.0,
                 "L/R output DPI ratio (left sens multiplier)": 1.0,
-                "U/D output DPI ratio (up/down sens multiplier)": 1.0,
+                "U/D output DPI ratio (up sens multiplier)": 1.0,
                 "Degrees of rotation": rotation,
                 "Degrees of angle snapping": 0.0,
-                "Sensitivity multiplier": sens_mult
+                "Input Speed Cap": 0.0
             }
-        ]
+        ],
+        "devices": []
     })
 }
 
@@ -204,12 +206,15 @@ mod win {
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
-            let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
-            return Err(if err.is_empty() {
-                format!("writer.exe exited with {}", out.status)
-            } else {
-                err
-            });
+            let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let err = match (stderr.is_empty(), stdout.is_empty()) {
+                (false, false) => format!("{stderr} ({stdout})"),
+                (false, true) => stderr,
+                (true, false) => stdout,
+                (true, true) => format!("writer.exe exited with {}", out.status),
+            };
+            return Err(err);
         }
         Ok(detect_status())
     }
@@ -270,14 +275,36 @@ mod tests {
         };
         let doc = build_settings_json(&cfg);
         assert_eq!(doc["defaultDeviceConfig"]["disable"], json!(false));
+        assert_eq!(doc["devices"], json!([]));
         let p = &doc["profiles"][0];
         assert_eq!(p["Whole or horizontal accel parameters"]["mode"], json!("natural"));
+        let speed_params = &p["Input speed calculation parameters"];
         assert_eq!(
-            p["Input speed calculation parameters"]["Output smoothing halflife ms"],
+            speed_params["Whole/combined accel (set false for 'by component' mode)"],
+            json!(true)
+        );
+        assert_eq!(speed_params["lpNorm"], json!(2.0));
+        assert_eq!(
+            speed_params["Time in ms after which an output is weighted at half its original value."],
             json!(2.5)
         );
         assert_eq!(p["Degrees of rotation"], json!(-5.0));
-        assert_eq!(p["Sensitivity multiplier"], json!(0.9));
+        assert_eq!(p["Output DPI"], json!(900.0));
+        assert_eq!(p["Input Speed Cap"], json!(0.0));
+        assert!(p.get("Sensitivity multiplier").is_none());
+
+        cfg.mode = "noaccel".into();
+        cfg.sens_multiplier_pct = 100;
+        cfg.output_smoothing_tenths = 15;
+        let doc_noaccel = build_settings_json(&cfg);
+        let p_noaccel = &doc_noaccel["profiles"][0];
+        assert_eq!(p_noaccel["Whole or horizontal accel parameters"]["mode"], json!("noaccel"));
+        assert_eq!(p_noaccel["Output DPI"], json!(1000.0));
+        assert_eq!(
+            p_noaccel["Input speed calculation parameters"]
+                ["Time in ms after which an output is weighted at half its original value."],
+            json!(1.5)
+        );
 
         cfg.enabled = false;
         cfg.mode = "synchronous".into();

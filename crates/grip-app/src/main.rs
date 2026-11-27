@@ -123,6 +123,31 @@ fn refresh_tray(app: &AppHandle, bus: &AppBus) {
     }
 }
 
+fn attach_main_window(app: &AppHandle, win: &WebviewWindow, bus: &AppBus) {
+    if let Some(saved) = bus.window_bounds() {
+        let b = win_host::clamp_window_bounds(saved);
+        let _ = win.set_size(tauri::PhysicalSize::new(b.width, b.height));
+        let _ = win.set_position(tauri::PhysicalPosition::new(b.x, b.y));
+        if b.maximized {
+            let _ = win.maximize();
+        }
+    }
+    let app_h = app.clone();
+    let win_h = win.clone();
+    win.on_window_event(move |ev| match ev {
+        WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
+            record_normal_bounds(&app_h, &win_h);
+        }
+        WindowEvent::CloseRequested { .. } => {
+            if let Some(bounds) = capture_window_bounds(&app_h, &win_h) {
+                app_h.state::<Arc<AppBus>>().save_window_bounds(bounds);
+            }
+        }
+        _ => {}
+    });
+    sync_titlebar_theme(win, bus);
+}
+
 fn open_main_window(app: &AppHandle, bus: &AppBus) {
     if let Some(win) = app.get_webview_window("main") {
         sync_titlebar_theme(&win, bus);
@@ -133,28 +158,7 @@ fn open_main_window(app: &AppHandle, bus: &AppBus) {
     }
     if let Some(cfg) = app.config().app.windows.first() {
         if let Ok(win) = WebviewWindowBuilder::from_config(app, cfg).and_then(|b| b.build()) {
-            if let Some(saved) = bus.window_bounds() {
-                let b = win_host::clamp_window_bounds(saved);
-                let _ = win.set_size(tauri::PhysicalSize::new(b.width, b.height));
-                let _ = win.set_position(tauri::PhysicalPosition::new(b.x, b.y));
-                if b.maximized {
-                    let _ = win.maximize();
-                }
-            }
-            let app_h = app.clone();
-            let win_h = win.clone();
-            win.on_window_event(move |ev| match ev {
-                WindowEvent::Moved(_) | WindowEvent::Resized(_) => {
-                    record_normal_bounds(&app_h, &win_h);
-                }
-                WindowEvent::CloseRequested { .. } => {
-                    if let Some(bounds) = capture_window_bounds(&app_h, &win_h) {
-                        app_h.state::<Arc<AppBus>>().save_window_bounds(bounds);
-                    }
-                }
-                _ => {}
-            });
-            sync_titlebar_theme(&win, bus);
+            attach_main_window(app, &win, bus);
             let _ = win.show();
             let _ = win.set_focus();
         }
@@ -358,6 +362,10 @@ fn main() {
                     });
                 }),
             });
+
+            if let Some(win) = app.get_webview_window("main") {
+                attach_main_window(app.handle(), &win, &app_bus);
+            }
 
             if !start_in_tray {
                 open_main_window(app.handle(), &app_bus);

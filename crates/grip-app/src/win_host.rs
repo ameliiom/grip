@@ -8,6 +8,24 @@ pub struct RunningApp {
     pub icon_data_url: Option<String>,
 }
 
+/// Build a per-desktop single-instance mutex name so hidden/test desktops never block the user's real desktop.
+pub fn single_instance_mutex_name(desktop_name: Option<&str>) -> String {
+    let clean: String = desktop_name
+        .unwrap_or("Default")
+        .trim()
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let suffix = if clean.is_empty() { "Default" } else { clean.as_str() };
+    format!("Local\\GripDesktopSingleInstance_{suffix}")
+}
+
 /// Purely algorithmic fallback when an executable exposes no OS PE version description.
 pub fn humanize_exe_stem(exe: &str) -> String {
     let base = exe.trim().rsplit(['\\', '/']).next().unwrap_or(exe).trim();
@@ -64,6 +82,7 @@ mod imp {
     use windows_sys::Win32::System::Registry::{
         RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_CURRENT_USER, KEY_READ,
     };
+    use windows_sys::Win32::System::StationsAndDesktops::{GetThreadDesktop, GetUserObjectInformationW, UOI_NAME};
     use windows_sys::Win32::System::Threading::{
         CreateMutexW, GetCurrentThreadId, OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
         PROCESS_QUERY_LIMITED_INFORMATION,
@@ -117,8 +136,33 @@ mod imp {
         }
     }
 
+    fn current_desktop_name() -> Option<String> {
+        unsafe {
+            let hdesk = GetThreadDesktop(GetCurrentThreadId());
+            if hdesk.is_null() {
+                return None;
+            }
+            let mut buf = [0u16; 128];
+            let mut needed = 0u32;
+            if GetUserObjectInformationW(
+                hdesk,
+                UOI_NAME,
+                buf.as_mut_ptr().cast(),
+                (buf.len() * 2) as u32,
+                &mut needed,
+            ) == 0
+            {
+                return None;
+            }
+            let end = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+            let name = String::from_utf16_lossy(&buf[..end]).trim().to_string();
+            (!name.is_empty()).then_some(name)
+        }
+    }
+
     pub fn acquire_single_instance() -> Option<SingleInstanceGuard> {
-        let name = wide("Local\\GripDesktopSingleInstance");
+        let desktop = current_desktop_name();
+        let name = wide(&super::single_instance_mutex_name(desktop.as_deref()));
         unsafe {
             let handle = CreateMutexW(null(), 0, name.as_ptr());
             if !handle.is_null() && GetLastError() == ERROR_ALREADY_EXISTS {
@@ -844,11 +888,31 @@ pub use imp::{
 
 #[cfg(test)]
 mod tests {
-    use super::humanize_exe_stem;
+    use super::{humanize_exe_stem, single_instance_mutex_name};
 
     #[test]
     fn algorithmic_exe_stem_formatting_handles_paths_and_separators() {
         assert_eq!(humanize_exe_stem("C:\\Games\\star-citizen_live.exe"), "Star Citizen Live");
         assert_eq!(humanize_exe_stem("notepad.exe"), "Notepad");
+    }
+
+    #[test]
+    fn single_instance_mutex_is_isolated_per_desktop() {
+        assert_eq!(
+            single_instance_mutex_name(Some("Default")),
+            "Local\\GripDesktopSingleInstance_Default"
+        );
+        assert_eq!(
+            single_instance_mutex_name(Some("exebox-ABC123")),
+            "Local\\GripDesktopSingleInstance_exebox-ABC123"
+        );
+        assert_eq!(
+            single_instance_mutex_name(None),
+            "Local\\GripDesktopSingleInstance_Default"
+        );
+        assert_eq!(
+            single_instance_mutex_name(Some("  ")),
+            "Local\\GripDesktopSingleInstance_Default"
+        );
     }
 }

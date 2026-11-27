@@ -4,6 +4,7 @@ import type { DeviceSnapshot } from "../acl/transport";
 import {
   Badge,
   Button,
+  HelpTip,
   Inline,
   Stack,
   SurfaceCard,
@@ -60,7 +61,10 @@ export function MacrosView({
       <SurfaceCard primaryContent={true} className="xl:col-span-6 min-w-0">
         <Stack gap="4">
           <Inline gap="2" justify="between" wrap={true}>
-            <h2 className="text-base font-bold">{vocab.macroCreateTitle}</h2>
+            <Inline gap="2" wrap={false}>
+              <h2 className="text-base font-bold">{vocab.macroCreateTitle}</h2>
+              <HelpTip {...vocab.help.macrosSection} side="bottom" />
+            </Inline>
             {device.macroMaxBytes > 0 ? (
               <Badge tone="neutral">
                 {vocab.macroMemoryLabel}: {Math.round((device.macroFreeBytes / device.macroMaxBytes) * 100)}%

@@ -19,7 +19,7 @@ export function AppIcon({
   iconDataUrl?: string | null;
   size?: "sm" | "md";
 }) {
-  const dim = size === "sm" ? "w-5 h-5 text-[10px]" : "w-6 h-6 text-xs";
+  const dim = size === "sm" ? "w-6 h-6 text-xs" : "w-7 h-7 text-xs";
   if (iconDataUrl) {
     return <img src={iconDataUrl} alt="" className={`${dim} rounded-[4px] object-contain shrink-0`} />;
   }

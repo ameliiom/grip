@@ -4,6 +4,7 @@ import type { DeviceSnapshot } from "../acl/transport";
 import {
   Button,
   ChoiceChips,
+  HelpTip,
   Inline,
   NumberStepper,
   SegmentedControl,
@@ -106,6 +107,7 @@ export function PerformanceView({
               <Inline gap="2" wrap={false}>
                 <Sliders size={18} strokeWidth={2} />
                 <h2 className="text-base font-bold">{vocab.speedStagesTitle}</h2>
+                <HelpTip {...vocab.help.perfStages} side="bottom" />
               </Inline>
 
               <Inline gap="1" wrap={false}>
@@ -223,7 +225,10 @@ export function PerformanceView({
                 ) : null}
 
                 <Inline gap="2" justify="between" wrap={false}>
-                  <span className="text-xs text-[var(--fg-muted)]">{vocab.independentAxes}</span>
+                  <Inline gap="1" wrap={false}>
+                    <span className="text-xs text-[var(--fg-muted)]">{vocab.independentAxes}</span>
+                    <HelpTip {...vocab.help.perfAxes} />
+                  </Inline>
                   <Switch
                     ariaLabel={vocab.independentAxes}
                     checked={independentXY}
@@ -247,6 +252,7 @@ export function PerformanceView({
               <Inline gap="2" wrap={false}>
                 <Zap size={17} strokeWidth={2} />
                 <h2 className="text-base font-bold">{vocab.pollingTitle}</h2>
+                <HelpTip {...vocab.help.perfPolling} side="bottom" />
               </Inline>
 
               <SegmentedControl
@@ -271,6 +277,7 @@ export function PerformanceView({
               <Inline gap="2" wrap={false}>
                 <Moon size={17} strokeWidth={2} />
                 <h2 className="text-base font-bold">{vocab.powerSleepTitle}</h2>
+                <HelpTip {...vocab.help.perfSleep} />
               </Inline>
 
               {device.batteryPercent !== null ? (
@@ -324,7 +331,10 @@ export function PerformanceView({
         {capabilities.hasScroll && device.scroll ? (
           <SurfaceCard stableFrame={true}>
             <Stack gap="4">
-              <h2 className="text-base font-bold">{vocab.scrollWheelTitle}</h2>
+              <Inline gap="2" wrap={false}>
+                <h2 className="text-base font-bold">{vocab.scrollWheelTitle}</h2>
+                <HelpTip {...vocab.help.perfScroll} />
+              </Inline>
               <Stack gap="2">
                 <span className="text-xs text-[var(--fg-muted)]">{vocab.scrollModeLabel}</span>
                 <ChoiceChips

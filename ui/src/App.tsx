@@ -55,12 +55,14 @@ function getInitialSection(): NavSection {
 export function App() {
   const [workspace, setWorkspace] = useState<WorkspaceSnapshot | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [statusToast, setStatusToast] = useState<string | null>(null);
+  const [toastState, setToastState] = useState<{ id: number; text: string } | null>(null);
   const [firmwareResult, setFirmwareResult] = useState<FirmwareCheckResult | null>(null);
   const [section, setSection] = useState<NavSection>(getInitialSection);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [systemTheme, setSystemTheme] = useState<ThemeMode>(getSystemTheme);
   const [applyingRawAccel, setApplyingRawAccel] = useState(false);
+  const [appliedRawAccel, setAppliedRawAccel] = useState<RawAccelSettings | null>(null);
 
   const settings = workspace?.settings ?? DEFAULT_SETTINGS;
   const vocab = VOCAB[settings.locale];
@@ -74,6 +76,19 @@ export function App() {
   useEffect(() => {
     devKeyRef.current = devKey;
   }, [devKey]);
+
+  const nextToastIdRef = useRef(1);
+  const showToast = useCallback((text: string) => {
+    const id = nextToastIdRef.current++;
+    setToastState({ id, text });
+  }, []);
+
+  const rawAccelInitRef = useRef(false);
+  const hasUnappliedRawAccel = Boolean(
+    workspace &&
+      appliedRawAccel &&
+      JSON.stringify(workspace.settings.rawAccel) !== JSON.stringify(appliedRawAccel),
+  );
 
   const pendingSettingsRef = useRef<AppSettings | null>(null);
   const settingsInFlightRef = useRef(false);
@@ -121,6 +136,7 @@ export function App() {
 
   const selectSection = (next: NavSection) => {
     setSection(next);
+    setGuideOpen(false);
     if (typeof window !== "undefined") {
       window.location.hash = next;
     }
@@ -131,19 +147,26 @@ export function App() {
     return localeRef.current === "ar" ? (ce.userMessageAr ?? String(err)) : (ce.userMessageEn ?? String(err));
   };
 
-  const run = useCallback(async (cmd: BusCommand, toastOnSuccess?: string) => {
-    try {
-      setErrorMsg(null);
-      const resp = await executeCommand(cmd);
-      setWorkspace(resp.workspace);
-      if (resp.firmwareCheck) setFirmwareResult(resp.firmwareCheck);
-      if (toastOnSuccess) setStatusToast(toastOnSuccess);
-      return resp;
-    } catch (err) {
-      setErrorMsg(formatError(err));
-      return null;
-    }
-  }, []);
+  const run = useCallback(
+    async (cmd: BusCommand, toastOnSuccess?: string) => {
+      try {
+        setErrorMsg(null);
+        const resp = await executeCommand(cmd);
+        setWorkspace(resp.workspace);
+        if (!rawAccelInitRef.current) {
+          rawAccelInitRef.current = true;
+          setAppliedRawAccel(resp.workspace.settings.rawAccel);
+        }
+        if (resp.firmwareCheck) setFirmwareResult(resp.firmwareCheck);
+        if (toastOnSuccess) showToast(toastOnSuccess);
+        return resp;
+      } catch (err) {
+        setErrorMsg(formatError(err));
+        return null;
+      }
+    },
+    [showToast],
+  );
 
   const flushSettings = useCallback(async () => {
     if (settingsInFlightRef.current) return;
@@ -157,6 +180,7 @@ export function App() {
           const resp = await executeCommand({ type: "updateSettings", settings: next });
           if (pendingSettingsRef.current === null) {
             setWorkspace(resp.workspace);
+            showToast(VOCAB[resp.workspace.settings.locale].toastAutoSaved);
           }
         } catch (err) {
           setErrorMsg(formatError(err));
@@ -166,7 +190,7 @@ export function App() {
     } finally {
       settingsInFlightRef.current = false;
     }
-  }, []);
+  }, [showToast]);
 
   const handleUpdateSettings = useCallback(
     (next: AppSettings) => {
@@ -202,6 +226,7 @@ export function App() {
           });
           if (pendingDpiRef.current === null) {
             setWorkspace(resp.workspace);
+            showToast(VOCAB[resp.workspace.settings.locale].toastAppliedToMouse);
           }
         } catch (err) {
           setErrorMsg(formatError(err));
@@ -211,7 +236,7 @@ export function App() {
     } finally {
       dpiInFlightRef.current = false;
     }
-  }, []);
+  }, [showToast]);
 
   const handleCommitDpiStages = useCallback(
     (activeStage: number, stages: [number, number][]) => {
@@ -272,6 +297,11 @@ export function App() {
 
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "F1") {
+        ev.preventDefault();
+        setGuideOpen((open) => !open);
+        return;
+      }
       const mod = ev.ctrlKey || ev.metaKey;
       if (mod && ev.key.toLowerCase() === "k") {
         ev.preventDefault();
@@ -292,41 +322,45 @@ export function App() {
     <WorkspaceShell
       workspace={workspace}
       errorMsg={errorMsg}
-      statusToast={statusToast}
-      onClearToast={() => setStatusToast(null)}
+      statusToast={toastState?.text ?? null}
+      toastKey={toastState?.id ?? 0}
+      onClearToast={() => setToastState(null)}
       firmwareResult={firmwareResult}
       section={section}
       paletteOpen={paletteOpen}
       onPaletteOpenChange={setPaletteOpen}
+      guideOpen={guideOpen}
+      onGuideOpenChange={setGuideOpen}
       applyingRawAccel={applyingRawAccel}
+      hasUnappliedRawAccel={hasUnappliedRawAccel}
       vocab={vocab}
       onSelectSection={selectSection}
       onSelectDevice={(k) => void run({ type: "selectDevice", deviceKey: k })}
       onRescan={() => void run({ type: "rescan" })}
       onSetButton={(button, layer, action) =>
-        void run({ type: "setButton", deviceKey: devKey, button, layer, action })
+        void run({ type: "setButton", deviceKey: devKey, button, layer, action }, vocab.toastButtonSaved)
       }
       onResetButton={(button, layer) =>
-        void run({ type: "resetButton", deviceKey: devKey, button, layer })
+        void run({ type: "resetButton", deviceKey: devKey, button, layer }, vocab.toastButtonReset)
       }
       onRestoreAll={() => void run({ type: "restoreAllButtons", deviceKey: devKey }, vocab.toastRestoredAll)}
       onSaveOnboard={() => void run({ type: "saveOnboard", deviceKey: devKey }, vocab.toastSavedOnboard)}
       onPutBackOnboard={() => void run({ type: "putBackOnboard", deviceKey: devKey }, vocab.toastRestoredFactory)}
-      onSelectDpiStage={(stage) => void run({ type: "setDpiStage", deviceKey: devKey, stage })}
+      onSelectDpiStage={(stage) => void run({ type: "setDpiStage", deviceKey: devKey, stage }, vocab.toastAppliedToMouse)}
       onCommitDpiStages={handleCommitDpiStages}
-      onSelectPolling={(hz) => void run({ type: "setPolling", deviceKey: devKey, hz })}
+      onSelectPolling={(hz) => void run({ type: "setPolling", deviceKey: devKey, hz }, vocab.toastAppliedToMouse)}
       onSetSleep={(minutes, autoSleep) =>
-        void run({ type: "setSleep", deviceKey: devKey, minutes, autoSleep })
+        void run({ type: "setSleep", deviceKey: devKey, minutes, autoSleep }, vocab.toastAppliedToMouse)
       }
-      onSetScroll={(patch) => void run({ type: "setScroll", deviceKey: devKey, ...patch })}
-      onSelectProfile={(name) => void run({ type: "selectProfile", deviceKey: devKey, name })}
-      onCreateProfile={(name) => void run({ type: "createProfile", deviceKey: devKey, name })}
+      onSetScroll={(patch) => void run({ type: "setScroll", deviceKey: devKey, ...patch }, vocab.toastAppliedToMouse)}
+      onSelectProfile={(name) => void run({ type: "selectProfile", deviceKey: devKey, name }, vocab.toastProfileUpdated)}
+      onCreateProfile={(name) => void run({ type: "createProfile", deviceKey: devKey, name }, vocab.toastProfileUpdated)}
       onRenameProfile={(oldName, newName) =>
-        void run({ type: "renameProfile", deviceKey: devKey, oldName, newName })
+        void run({ type: "renameProfile", deviceKey: devKey, oldName, newName }, vocab.toastProfileUpdated)
       }
-      onDeleteProfile={(name) => void run({ type: "deleteProfile", deviceKey: devKey, name })}
+      onDeleteProfile={(name) => void run({ type: "deleteProfile", deviceKey: devKey, name }, vocab.toastProfileUpdated)}
       onSetProfileApps={(name, apps) =>
-        void run({ type: "setProfileApps", deviceKey: devKey, name, apps })
+        void run({ type: "setProfileApps", deviceKey: devKey, name, apps }, vocab.toastProfileUpdated)
       }
       onExportProfiles={async () => {
         const resp = await run({ type: "exportProfiles" });
@@ -334,30 +368,32 @@ export function App() {
       }}
       onImportProfiles={(json) => void run({ type: "importProfiles", json }, vocab.toastImportedProfiles)}
       onCreateMacro={(name, steps) =>
-        void run({ type: "createMacro", deviceKey: devKey, name, steps })
+        void run({ type: "createMacro", deviceKey: devKey, name, steps }, vocab.toastSavedOnboard)
       }
-      onDeleteMacro={(macroId) => void run({ type: "deleteMacro", deviceKey: devKey, macroId })}
+      onDeleteMacro={(macroId) => void run({ type: "deleteMacro", deviceKey: devKey, macroId }, vocab.toastProfileUpdated)}
       onSetLightingControl={(enabled) =>
-        void run({ type: "setLightingControl", deviceKey: devKey, enabled })
+        void run({ type: "setLightingControl", deviceKey: devKey, enabled }, vocab.toastAppliedToMouse)
       }
       onSetLightingColor={(zone, color) =>
-        void run({ type: "setLightingColor", deviceKey: devKey, zone, color })
+        void run({ type: "setLightingColor", deviceKey: devKey, zone, color }, vocab.toastAppliedToMouse)
       }
       onSetLightingBrightness={(zone, percent) =>
-        void run({ type: "setLightingBrightness", deviceKey: devKey, zone, percent })
+        void run({ type: "setLightingBrightness", deviceKey: devKey, zone, percent }, vocab.toastAppliedToMouse)
       }
       onSetLightingEffect={(zone, effect) =>
-        void run({ type: "setLightingEffect", deviceKey: devKey, zone, effect })
+        void run({ type: "setLightingEffect", deviceKey: devKey, zone, effect }, vocab.toastAppliedToMouse)
       }
-      onSetLightingOff={(zone) => void run({ type: "setLightingOff", deviceKey: devKey, zone })}
-      onSyncLighting={(color) => void run({ type: "syncLighting", color })}
+      onSetLightingOff={(zone) => void run({ type: "setLightingOff", deviceKey: devKey, zone }, vocab.toastAppliedToMouse)}
+      onSyncLighting={(color) => void run({ type: "syncLighting", color }, vocab.toastAppliedToMouse)}
       onUpdateSettings={handleUpdateSettings}
       onApplyRawAccel={(raw: RawAccelSettings) => {
         if (applyingRawAccel) return;
         setApplyingRawAccel(true);
-        void run({ type: "applyRawAccel", settings: raw }, vocab.toastRawAccelApplied).finally(() =>
-          setApplyingRawAccel(false),
-        );
+        void run({ type: "applyRawAccel", settings: raw }, vocab.toastRawAccelApplied)
+          .then((resp) => {
+            if (resp) setAppliedRawAccel(resp.workspace.settings.rawAccel);
+          })
+          .finally(() => setApplyingRawAccel(false));
       }}
       onOpenRawAccelDownload={() => void run({ type: "openRawAccelDownload" })}
       onRefreshMotionStatus={() => void run({ type: "refreshMotionStatus" })}

@@ -5,6 +5,7 @@ import { BrandColorPicker } from "../design-system/BrandColorPicker";
 import {
   Badge,
   Button,
+  HelpTip,
   Inline,
   SegmentedControl,
   Slider,
@@ -48,7 +49,10 @@ export function SettingsView({
       {/* Startup & Behavior */}
       <SurfaceCard primaryContent={true} stableFrame={true} className="lg:col-span-7 min-w-0 h-full">
         <Stack gap="2">
-          <h2 className="text-base font-bold">{vocab.settingsBehaviorTitle}</h2>
+          <Inline gap="2" wrap={false}>
+            <h2 className="text-base font-bold">{vocab.settingsBehaviorTitle}</h2>
+            <HelpTip {...vocab.help.settingsBehavior} side="bottom" />
+          </Inline>
 
           <SurfaceInset>
             <Inline gap="2" justify="between" wrap={false}>
@@ -149,6 +153,7 @@ export function SettingsView({
             <Inline gap="2" wrap={false}>
               <Palette size={17} strokeWidth={2} />
               <h2 className="text-base font-bold">{vocab.settingsAppearanceTitle}</h2>
+              <HelpTip {...vocab.help.settingsAppearance} side="bottom" />
             </Inline>
 
             <Inline gap="2" justify="between" wrap={true}>

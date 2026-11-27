@@ -11,6 +11,7 @@ import type {
 import {
   Badge,
   Button,
+  HelpTip,
   Inline,
   SegmentedControl,
   Slider,
@@ -37,6 +38,7 @@ export function MotionView({
   onUpdateSettings,
   onApplyRawAccel,
   applyingRawAccel = false,
+  hasUnappliedRawAccel = false,
   onOpenRawAccelDownload,
   onRefreshMotionStatus,
   onSelectPolling,
@@ -50,6 +52,7 @@ export function MotionView({
   onUpdateSettings: (next: AppSettings) => void;
   onApplyRawAccel: (raw: RawAccelSettings) => void;
   applyingRawAccel?: boolean;
+  hasUnappliedRawAccel?: boolean;
   onOpenRawAccelDownload: () => void;
   onRefreshMotionStatus: () => void;
   onSelectPolling: (hz: number) => void;
@@ -112,11 +115,13 @@ export function MotionView({
       ? { tone: "warn" as const, text: vocab.motionPausedGameBadge }
       : { tone: "ok" as const, text: vocab.motionActiveBadge };
 
-  const driverBadge = rawAccelStatus.driverRunning
-    ? { tone: "ok" as const, text: vocab.motionGamingReadyBadge }
-    : rawAccelStatus.installed
+  const driverBadge = !rawAccelStatus.driverRunning
+    ? rawAccelStatus.installed
       ? { tone: "warn" as const, text: vocab.motionGamingInstalledBadge }
-      : { tone: "neutral" as const, text: vocab.motionGamingMissingBadge };
+      : { tone: "neutral" as const, text: vocab.motionGamingMissingBadge }
+    : hasUnappliedRawAccel
+      ? { tone: "warn" as const, text: vocab.motionRawAccelPendingBadge }
+      : { tone: "ok" as const, text: vocab.motionGamingReadyBadge };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 items-stretch">
@@ -127,6 +132,7 @@ export function MotionView({
             <Inline gap="2" wrap={false}>
               <Sparkles size={18} strokeWidth={2} />
               <h2 className="text-base font-bold">{vocab.motionDesktopTitle}</h2>
+              <HelpTip {...vocab.help.motionDesktop} side="bottom" />
             </Inline>
             <Inline gap="2" wrap={false}>
               <Badge tone={smoothBadge.tone} showDot={true}>
@@ -179,7 +185,10 @@ export function MotionView({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Stack gap="1">
                 <Inline gap="2" justify="between" wrap={false}>
-                  <span className="text-xs font-semibold">{vocab.motionStrengthLabel}</span>
+                  <Inline gap="1" wrap={false}>
+                    <span className="text-xs font-semibold">{vocab.motionStrengthLabel}</span>
+                    <HelpTip {...vocab.help.motionStrength} />
+                  </Inline>
                   <span className="text-xs font-bold tabular-nums">{ds.strength}%</span>
                 </Inline>
                 <Slider
@@ -194,7 +203,10 @@ export function MotionView({
 
               <Stack gap="1">
                 <Inline gap="2" justify="between" wrap={false}>
-                  <span className="text-xs font-semibold">{vocab.motionRespLabel}</span>
+                  <Inline gap="1" wrap={false}>
+                    <span className="text-xs font-semibold">{vocab.motionRespLabel}</span>
+                    <HelpTip {...vocab.help.motionResp} />
+                  </Inline>
                   <span className="text-xs font-bold tabular-nums">{ds.responsiveness}%</span>
                 </Inline>
                 <Slider
@@ -209,7 +221,10 @@ export function MotionView({
 
               <Stack gap="1">
                 <Inline gap="2" justify="between" wrap={false}>
-                  <span className="text-xs font-semibold">{vocab.motionMicroLabel}</span>
+                  <Inline gap="1" wrap={false}>
+                    <span className="text-xs font-semibold">{vocab.motionMicroLabel}</span>
+                    <HelpTip {...vocab.help.motionMicro} />
+                  </Inline>
                   <span className="text-xs font-bold tabular-nums">{ds.microPrecision}%</span>
                 </Inline>
                 <Slider
@@ -224,7 +239,10 @@ export function MotionView({
 
               <Stack gap="1">
                 <Inline gap="2" justify="between" wrap={false}>
-                  <span className="text-xs font-semibold">{vocab.motionRotationLabel}</span>
+                  <Inline gap="1" wrap={false}>
+                    <span className="text-xs font-semibold">{vocab.motionRotationLabel}</span>
+                    <HelpTip {...vocab.help.motionRotation} />
+                  </Inline>
                   <Inline gap="1" wrap={false}>
                     <span className="text-xs font-bold tabular-nums" dir="ltr">
                       {ds.rotationDeg > 0 ? `+${ds.rotationDeg}°` : `${ds.rotationDeg}°`}
@@ -251,7 +269,10 @@ export function MotionView({
           <SurfaceInset>
             <Inline gap="2" justify="between" wrap={false}>
               <Stack gap="1">
-                <span className="text-sm font-semibold">{vocab.motionBypassGamesLabel}</span>
+                <Inline gap="1" wrap={false}>
+                  <span className="text-sm font-semibold">{vocab.motionBypassGamesLabel}</span>
+                  <HelpTip {...vocab.help.motionBypass} />
+                </Inline>
                 <span className="text-xs text-[var(--fg-muted)]">{vocab.motionBypassGamesHint}</span>
               </Stack>
               <Switch
@@ -271,6 +292,7 @@ export function MotionView({
             <Inline gap="2" wrap={false}>
               <Gamepad2 size={18} strokeWidth={2} />
               <h2 className="text-base font-bold">{vocab.motionGamingTitle}</h2>
+              <HelpTip {...vocab.help.motionGaming} side="bottom" />
             </Inline>
             <Badge tone={driverBadge.tone} showDot={true}>
               {driverBadge.text}
@@ -308,7 +330,10 @@ export function MotionView({
 
               <SurfaceInset>
                 <Stack gap="2">
-                  <span className="text-xs font-semibold text-[var(--fg-muted)]">{vocab.motionRawAccelModeLabel}</span>
+                  <Inline gap="1" wrap={false}>
+                    <span className="text-xs font-semibold text-[var(--fg-muted)]">{vocab.motionRawAccelModeLabel}</span>
+                    <HelpTip {...vocab.help.motionRawMode} />
+                  </Inline>
                   <SegmentedControl
                     ariaLabel={vocab.motionRawAccelModeLabel}
                     size="sm"
@@ -328,7 +353,10 @@ export function MotionView({
                 <Stack gap="2">
                   <Stack gap="1">
                     <Inline gap="2" justify="between" wrap={false}>
-                      <span className="text-xs font-semibold">{vocab.motionRawAccelSmoothLabel}</span>
+                      <Inline gap="1" wrap={false}>
+                        <span className="text-xs font-semibold">{vocab.motionRawAccelSmoothLabel}</span>
+                        <HelpTip {...vocab.help.motionRawSmooth} />
+                      </Inline>
                       <span className="text-xs font-bold tabular-nums" dir="ltr">
                         {(ra.outputSmoothingTenths / 10).toFixed(1)} ms
                       </span>
@@ -345,7 +373,10 @@ export function MotionView({
 
                   <Stack gap="1">
                     <Inline gap="2" justify="between" wrap={false}>
-                      <span className="text-xs font-semibold">{vocab.motionRawAccelSensLabel}</span>
+                      <Inline gap="1" wrap={false}>
+                        <span className="text-xs font-semibold">{vocab.motionRawAccelSensLabel}</span>
+                        <HelpTip {...vocab.help.motionRawSens} />
+                      </Inline>
                       <span className="text-xs font-bold tabular-nums" dir="ltr">
                         {(ra.sensMultiplierPct / 100).toFixed(2)}x
                       </span>
@@ -362,7 +393,10 @@ export function MotionView({
 
                   <Stack gap="1">
                     <Inline gap="2" justify="between" wrap={false}>
-                      <span className="text-xs font-semibold">{vocab.motionRotationLabel}</span>
+                      <Inline gap="1" wrap={false}>
+                        <span className="text-xs font-semibold">{vocab.motionRotationLabel}</span>
+                        <HelpTip {...vocab.help.motionRotation} />
+                      </Inline>
                       <span className="text-xs font-bold tabular-nums" dir="ltr">
                         {ra.rotationDeg > 0 ? `+${ra.rotationDeg}°` : `${ra.rotationDeg}°`}
                       </span>
@@ -380,7 +414,13 @@ export function MotionView({
               </SurfaceInset>
 
               <Button variant="primary" size="md" fullWidth={true} disabled={applyingRawAccel} onClick={() => onApplyRawAccel(ra)}>
-                <span>{vocab.motionRawAccelApply}</span>
+                <span>
+                  {applyingRawAccel
+                    ? vocab.motionRawAccelApplying
+                    : hasUnappliedRawAccel
+                      ? vocab.motionRawAccelApplyDirty
+                      : vocab.motionRawAccelApply}
+                </span>
               </Button>
             </Stack>
           ) : (

@@ -413,6 +413,18 @@ export const BUTTON_LABELS: Record<Locale, Record<string, string>> = {
   },
 };
 
+export interface HelpTipCopy {
+  title: string;
+  body: string;
+}
+
+export interface ScreenGuideCopy {
+  title: string;
+  summary: string;
+  steps: readonly string[];
+  saveNote: string;
+}
+
 export interface Vocab {
   appName: string;
   navButtons: string;
@@ -617,9 +629,44 @@ export interface Vocab {
   motionRawAccelSmoothLabel: string;
   motionRawAccelSensLabel: string;
   motionRawAccelApply: string;
+  motionRawAccelApplying: string;
+  motionRawAccelApplyDirty: string;
+  motionRawAccelPendingBadge: string;
   motionRawAccelSetupHint: string;
   motionRawAccelDownload: string;
   motionRawAccelRefresh: string;
+  screenGuideTrigger: string;
+  toastAutoSaved: string;
+  toastAppliedToMouse: string;
+  toastButtonSaved: string;
+  toastButtonReset: string;
+  toastProfileUpdated: string;
+  guides: Record<"buttons" | "performance" | "motion" | "profiles" | "macros" | "lighting" | "settings", ScreenGuideCopy>;
+  help: {
+    buttonsLayer: HelpTipCopy;
+    buttonsSaveOnboard: HelpTipCopy;
+    perfStages: HelpTipCopy;
+    perfAxes: HelpTipCopy;
+    perfPolling: HelpTipCopy;
+    perfSleep: HelpTipCopy;
+    perfScroll: HelpTipCopy;
+    motionDesktop: HelpTipCopy;
+    motionStrength: HelpTipCopy;
+    motionResp: HelpTipCopy;
+    motionMicro: HelpTipCopy;
+    motionRotation: HelpTipCopy;
+    motionBypass: HelpTipCopy;
+    motionGaming: HelpTipCopy;
+    motionRawMode: HelpTipCopy;
+    motionRawSmooth: HelpTipCopy;
+    motionRawSens: HelpTipCopy;
+    profilesList: HelpTipCopy;
+    profilesAutoSwitch: HelpTipCopy;
+    macrosSection: HelpTipCopy;
+    lightingSection: HelpTipCopy;
+    settingsBehavior: HelpTipCopy;
+    settingsAppearance: HelpTipCopy;
+  };
 }
 
 export const VOCAB: Record<Locale, Vocab> = {
@@ -827,9 +874,184 @@ export const VOCAB: Record<Locale, Vocab> = {
     motionRawAccelSmoothLabel: "تنعيم الإخراج",
     motionRawAccelSensLabel: "مضاعف الحساسية",
     motionRawAccelApply: "تطبيق على الألعاب",
+    motionRawAccelApplying: "جاري التطبيق...",
+    motionRawAccelApplyDirty: "تطبيق التعديلات على الألعاب",
+    motionRawAccelPendingBadge: "تعديلات بانتظار التطبيق",
     motionRawAccelSetupHint: "لنعومة فائقة داخل الألعاب التنافسية بدون تأخير وبشكل مقبول مع أنظمة الحماية، ثبّت أداة Raw Accel الرسمية ثم اضغط فحص.",
     motionRawAccelDownload: "تحميل Raw Accel الرسمي",
     motionRawAccelRefresh: "فحص بعد التثبيت",
+    screenGuideTrigger: "شرح هذه الشاشة (F1)",
+    toastAutoSaved: "تم الحفظ تلقائياً",
+    toastAppliedToMouse: "تم التطبيق على الماوس",
+    toastButtonSaved: "تم حفظ وظيفة الزر",
+    toastButtonReset: "تمت إعادة الزر للافتراضي",
+    toastProfileUpdated: "تم تحديث البروفايل",
+    guides: {
+      buttons: {
+        title: "تخصيص الأزرار",
+        summary: "بدّل وظيفة أي زر بالماوس أو أضف اختصاراً جديداً للوضع الأساسي أو الإضافي.",
+        steps: [
+          "اضغط أي زر على رسمة الماوس أو من الشبكة بالأسفل لاختياره.",
+          "اختر نوع الوظيفة من اليسار (اختصار لوحة، أمر ويندوز، نقر سريع، سرعة، أو تعطيل).",
+          "بعد الانتهاء اضغط حفظ في ذاكرة الماوس حتى تبقى التعديلات حتى بدون تشغيل التطبيق.",
+        ],
+        saveNote: "تعيين الزر يتطبق فوراً على البروفايل، وزر الحفظ يثبته في ذاكرة الماوس الداخلية.",
+      },
+      performance: {
+        title: "السرعة والطاقة",
+        summary: "تحكم بمراحل حساسية المؤشر (DPI) وسرعة الاستجابة وسكون البطارية.",
+        steps: [
+          "اضغط أي عمود من مراحل السرعة لاختياره وتفعيل سرعته مباشرة.",
+          "اسحب شريط السرعة أو اكتب الرقم لضبط الحساسية، وفعل فصل المحورين عند الحاجة.",
+          "اختر معدل الاستجابة المناسب (Hz) ووقت السكون لتوازن الأداء وعمر البطارية.",
+        ],
+        saveNote: "كل تغيير هنا ينحفظ ويتطبق مباشرة على الماوس خلال أجزاء من الثانية.",
+      },
+      motion: {
+        title: "التنعيم والدقة",
+        summary: "نعومة فائقة للماوس على سطح المكتب وتنعيم مخصص للألعاب بدون تأخير.",
+        steps: [
+          "العمود الأيمن/الأول للنظام: اختر خفيف أو متوازن أو فائق النعومة، أو وزنه بالشرائط.",
+          "خيار الإيقاف التلقائي يوقف تنعيم المكتب فور دخولك أوفرواتش أو أي لعبة بملء الشاشة.",
+          "عمود الألعاب يضبط Raw Accel: عدّل النعومة أو المنحنى ثم اضغط تطبيق ليُفعّل بالتعريف.",
+        ],
+        saveNote: "شرائط تنعيم المكتب تنحفظ وتشتغل فوراً، أما عمود الألعاب فيتفعّل عند الضغط على تطبيق.",
+      },
+      profiles: {
+        title: "البروفايلات والألعاب",
+        summary: "أنشئ أوضاعاً مختلفة لألعابك وبرامجك واربطها لتتبدّل تلقائياً.",
+        steps: [
+          "اختر البروفايل من القائمة أو أنشئ واحداً جديداً وسمّه باسم لعبتك.",
+          "من قسم البرامج المرتبطة اضغط على أي برنامج مفتوح أو أضف اسمه ليشتغل البروفايل معه تلقائياً.",
+          "استخدم تصدير/استيراد لأخذ نسخة احتياطية لكل بروفايلاتك بأي وقت.",
+        ],
+        saveNote: "التبديل والربط والإنشاء تنحفظ تلقائياً في ملف البروفايلات فور تعديلها.",
+      },
+      macros: {
+        title: "الماكرو المتسلسل",
+        summary: "سجّل سلسلة مفاتيح وتوقيتات واضغط زراً واحداً لتنفيذها تلقائياً.",
+        steps: [
+          "اكتب اسماً واضحاً للماكرو ثم اضغط ابدأ التسجيل واضغط المفاتيح بالترتيب.",
+          "أضف فواصل 50 مللي ثانية بين الضغطات عند الحاجة، واضغط أي خطوة لحذفها.",
+          "اضغط حفظ الماكرو بالماوس ثم اربطه بأي زر من تبويب الأزرار.",
+        ],
+        saveNote: "الماكرو يُحفظ في ذاكرة الماوس عند الضغط على زر الحفظ فقط.",
+      },
+      lighting: {
+        title: "الإضاءة والألوان",
+        summary: "اختر تأثير الإضاءة ولون التمييز ومستوى السطوع لكل منطقة بالماوس.",
+        steps: [
+          "فعّل التحكم بالإضاءة من أعلى البطاقة لفتح التخصيص.",
+          "اختر التأثير (طيف، تنفّس، أو موجة) ثم اللون المناسب.",
+          "اضبط شريط السطوع أو اضغط توحيد اللون لتطبيقه على جميع الأجهزة.",
+        ],
+        saveNote: "كل تغيير باللون أو السطوع يتطبق مباشرة على إضاءة الماوس.",
+      },
+      settings: {
+        title: "الإعدادات",
+        summary: "ضبط تشغيل التطبيق مع النظام، التنبيهات، المظهر، اللغة، ومعلومات الجهاز.",
+        steps: [
+          "فعّل التشغيل التلقائي مع الويندوز والبقاء بالساعة لتتفعّل بروفايلاتك والتنعيم دائماً.",
+          "اختر المظهر التلقائي أو الداكن أو الفاتح، ولون التمييز ولغة الواجهة.",
+          "افتح قسم معلومات الجهاز والدعم للتحقق من التحديثات أو فتح مجلد المحفوظات.",
+        ],
+        saveNote: "جميع خيارات الإعدادات والمظهر تنحفظ وتُفعّل فوراً دون الحاجة لزر حفظ.",
+      },
+    },
+    help: {
+      buttonsLayer: {
+        title: "الوضع الأساسي والإضافي",
+        body: "الوضع الأساسي يعمل بالضغط العادي. الوضع الإضافي يمنح كل زر وظيفة ثانية عند الضغط المطوّل على زر الطبقة.",
+      },
+      buttonsSaveOnboard: {
+        title: "الحفظ في ذاكرة الماوس",
+        body: "التعديلات تتطبق الآن عبر البرنامج، والضغط على هذا الزر يكتبها داخل الماوس لتعمل على أي جهاز آخر حتى بدون Grip.",
+      },
+      perfStages: {
+        title: "مراحل السرعة (DPI)",
+        body: "الرقم الأعلى يجعل المؤشر أسرع بنفس حركة اليد. 800-1600 ممتاز للدقة و2400-3000 للحركة السريعة أو الشاشات العريضة.",
+      },
+      perfAxes: {
+        title: "فصل المحور الأفقي والعمودي",
+        body: "شغّله فقط إذا أردت سرعة حركة اليمين واليسار مختلفة عن سرعة الأعلى والأسفل.",
+      },
+      perfPolling: {
+        title: "معدل الاستجابة (Hz)",
+        body: "عدد مرات إرسال حركة الماوس في الثانية. 1000Hz يعطي سلاسة أعلى لشاشات الألعاب، و125-500 يوفّر بطارية أكثر.",
+      },
+      perfSleep: {
+        title: "السكون والبطارية",
+        body: "يطفئ الحساس مؤقتاً بعد توقفك عن استخدام الماوس لتطويل عمر البطارية دون تأخير عند تحريكه مجدداً.",
+      },
+      perfScroll: {
+        title: "أوضاع عجلة التمرير",
+        body: "تتيح التبديل بين الدرجات المتقطعة الدقيقة والحركة الحرة السريعة للصفحات الطويلة.",
+      },
+      motionDesktop: {
+        title: "تنعيم المكتب التكيفي",
+        body: "يمتص اهتزاز اليد البسيط عند التصويب الدقيق أو الضغط على الأيقونات الصغيرة ويبقي الحركات السريعة حرة بدون ثقل.",
+      },
+      motionStrength: {
+        title: "قوة التنعيم",
+        body: "رفعه ينعّم الاهتزازات البطيئة أكثر؛ خفضه يعطي إحساساً أقرب للحركة الخام المباشرة.",
+      },
+      motionResp: {
+        title: "استجابة الحركة السريعة",
+        body: "رفعه يقلل أي تأخير عند تحريك الماوس بسرعة بين طرفي الشاشة؛ خفضه يهدّئ الحركة السريعة أكثر.",
+      },
+      motionMicro: {
+        title: "تثبيت الدقة البطيئة",
+        body: "يقلل الحركات المجهرية تحت 350 بكسل في الثانية لتسهيل التحديد الدقيق في القوائم والتصميم.",
+      },
+      motionRotation: {
+        title: "ميلان مسكة اليد",
+        body: "يعوّض ميلان معصمك الطبيعي حتى تطلع الحركة الأفقية مستقيمة. اتركه 0 إذا مسكتك مستقيمة.",
+      },
+      motionBypass: {
+        title: "الإيقاف التلقائي بالألعاب",
+        body: "يوقف تنعيم المكتب تلقائياً بمجرد تشغيل لعبة أو نافذة بملء الشاشة لحماية الأيم والتوافق التام مع أنظمة مكافحة الغش.",
+      },
+      motionGaming: {
+        title: "محرك Raw Accel للألعاب",
+        body: "يعمل على مستوى تعريف الويندوز بزمن شبه معدوم ومناسب للألعاب التنافسية، ويحتاج الضغط على زر التطبيق لتفعيله.",
+      },
+      motionRawMode: {
+        title: "نوع المنحنى بالألعاب",
+        body: "ثابت: سرعة متساوية تماماً بدون تسريع. طبيعي ومتزامن: دقة أعلى بالحركة البطيئة وتسارع ناعم بالالتفاف السريع.",
+      },
+      motionRawSmooth: {
+        title: "تنعيم إخراج الألعاب",
+        body: "قيمة 0 خام تماماً؛ 1.5 إلى 5.0 مللي ثانية تنعّم تقطّع الحساس بشكل ملحوظ على شاشات 240Hz بأقل أثر على زمن الاستجابة.",
+      },
+      motionRawSens: {
+        title: "مضاعف الحساسية",
+        body: "1.00x يحافظ على سرعتك الأصلية 100%. أقل يبطئ الحساسية الكاملة وأعلى يسرّعها.",
+      },
+      profilesList: {
+        title: "قائمة البروفايلات",
+        body: "كل بروفايل يحفظ أزراره ومراحل سرعته ومعدل استجابته بشكل مستقل. لا يمكن حذف البروفايل المفعّل حالياً.",
+      },
+      profilesAutoSwitch: {
+        title: "التبديل التلقائي مع البرامج",
+        body: "عند ربط لعبة أو برنامج بهذا البروفايل، يتحوّل الماوس إليه فور الانتقال لتلك النافذة ويعود لوضعك الافتراضي عند الخروج.",
+      },
+      macrosSection: {
+        title: "الماكرو المتسلسل",
+        body: "يسجّل ضغطات لوحة المفاتيح مع توقيت الانتظار بينها. اضغط أي خطوة لحذفها قبل الحفظ بالماوس.",
+      },
+      lightingSection: {
+        title: "التحكم بإضاءة الماوس",
+        body: "اضبط اللون والتأثير والسطوع مباشرة على الماوس؛ تقليل السطوع يطيل عمر البطارية اللاسلكية.",
+      },
+      settingsBehavior: {
+        title: "سلوك التشغيل والنظام",
+        body: "يحدّد بقاء التطبيق بالخلفية عند الساعة لتشغيل التنعيم والتبديل التلقائي مع ألعابك في كل تشغيل للويندوز.",
+      },
+      settingsAppearance: {
+        title: "المظهر ولون التمييز",
+        body: "يتبع مظهر الويندوز تلقائياً أو يثبّت الداكن/الفاتح مع تغيير لون الأزرار الفعّالة ولغة كل الشاشات.",
+      },
+    },
   },
   en: {
     appName: "Grip",
@@ -1035,8 +1257,183 @@ export const VOCAB: Record<Locale, Vocab> = {
     motionRawAccelSmoothLabel: "Output smoothing",
     motionRawAccelSensLabel: "Sensitivity scale",
     motionRawAccelApply: "Apply to games",
+    motionRawAccelApplying: "Applying...",
+    motionRawAccelApplyDirty: "Apply changes to games",
+    motionRawAccelPendingBadge: "Unapplied changes",
     motionRawAccelSetupHint: "For sub-0.1ms anti-cheat-safe cursor smoothing inside competitive games, install official Raw Accel then refresh status.",
     motionRawAccelDownload: "Get official Raw Accel",
     motionRawAccelRefresh: "Refresh status",
+    screenGuideTrigger: "Screen guide (F1)",
+    toastAutoSaved: "Saved automatically",
+    toastAppliedToMouse: "Applied to mouse",
+    toastButtonSaved: "Button action saved",
+    toastButtonReset: "Button reset to default",
+    toastProfileUpdated: "Profile updated",
+    guides: {
+      buttons: {
+        title: "Buttons",
+        summary: "Assign keyboard shortcuts, Windows actions, rapid fire, or layer keys to any mouse input.",
+        steps: [
+          "Click a button on the mouse blueprint or bottom grid to select it.",
+          "Pick an action category on the left (Shortcut, Windows, Mouse, Rapid fire, Speed, Media, or Disable).",
+          "Click Save to mouse at the bottom to store edits inside onboard mouse memory.",
+        ],
+        saveNote: "Button changes update your active profile immediately; Save to mouse writes them into hardware flash.",
+      },
+      performance: {
+        title: "Speed & Power",
+        summary: "Configure pointer speed stages (DPI), sensor polling rate, and wireless sleep behavior.",
+        steps: [
+          "Click any stage column to activate that speed immediately.",
+          "Drag the slider or enter an exact number, and toggle X/Y separation if needed.",
+          "Pick your polling rate (Hz) and idle sleep timer to balance responsiveness and battery life.",
+        ],
+        saveNote: "All changes in Speed & Power save and apply directly to the connected mouse.",
+      },
+      motion: {
+        title: "Motion & Precision",
+        summary: "Tune adaptive desktop smoothing and driver-level gaming smoothing without sacrificing speed.",
+        steps: [
+          "Left card tunes desktop smoothing: pick Light, Balanced, or Silky, or adjust sliders.",
+          "Keep Auto-bypass enabled so desktop smoothing pauses automatically in fullscreen games.",
+          "Right card tunes Raw Accel for games: adjust curve or smoothing, then click Apply to games.",
+        ],
+        saveNote: "Desktop controls save and take effect live; Gaming Raw Accel updates when you click Apply.",
+      },
+      profiles: {
+        title: "Profiles & Apps",
+        summary: "Manage distinct profiles per workflow and link games or apps for automatic switching.",
+        steps: [
+          "Select a profile on the left or create a new one for each game or workflow.",
+          "Click running apps on the right (or type an app name) to link automatic switching.",
+          "Use Export or Import to back up or share your full profile library anytime.",
+        ],
+        saveNote: "Switching, renaming, linking apps, and deleting profiles save automatically.",
+      },
+      macros: {
+        title: "Macros",
+        summary: "Record multi-key sequences and delays that play back from any mouse button.",
+        steps: [
+          "Name your macro, click Start recording, and press keys in sequence.",
+          "Insert 50 ms pauses between steps if needed, or click a step chip to remove it.",
+          "Click Save macro to write it to mouse memory, then bind it on the Buttons tab.",
+        ],
+        saveNote: "Macros are written to mouse memory when you click Save macro.",
+      },
+      lighting: {
+        title: "Lighting",
+        summary: "Customize LED effects, accent colors, and brightness per mouse lighting zone.",
+        steps: [
+          "Enable lighting control at the top of the card.",
+          "Pick an effect style and color preset for each zone.",
+          "Drag the brightness slider or click Match all devices to sync across hardware.",
+        ],
+        saveNote: "Every color, effect, and brightness adjustment updates hardware lighting live.",
+      },
+      settings: {
+        title: "Settings",
+        summary: "Control autostart, tray behavior, notifications, visual theme, language, and hardware diagnostics.",
+        steps: [
+          "Enable autostart and Keep in tray so auto-switching and motion smoothing always stay ready.",
+          "Switch between Auto, Dark, or Light themes, brand accent color, and Arabic or English.",
+          "Expand Device details & support to check updates, conflicts, or open your saved folder.",
+        ],
+        saveNote: "All preferences and theme choices save and apply automatically.",
+      },
+    },
+    help: {
+      buttonsLayer: {
+        title: "Primary & Secondary layers",
+        body: "Primary works on normal clicks. Secondary gives every button a second action while holding your layer key.",
+      },
+      buttonsSaveOnboard: {
+        title: "Save to mouse memory",
+        body: "Edits apply via Grip right now; saving to mouse writes them into flash memory so they work even without Grip running.",
+      },
+      perfStages: {
+        title: "Speed stages (DPI)",
+        body: "Higher values move the cursor farther per physical inch. 800-1600 suits precision; 2400-3000 suits large ultra-wide screens.",
+      },
+      perfAxes: {
+        title: "Independent X / Y sensitivity",
+        body: "Turn this on only if you want horizontal speed to differ from vertical speed.",
+      },
+      perfPolling: {
+        title: "Response rate (Hz)",
+        body: "How often the mouse reports motion each second. 1000Hz maximizes smoothness; 125-500Hz extends wireless battery life.",
+      },
+      perfSleep: {
+        title: "Battery & idle sleep",
+        body: "Turns off the sensor after idle minutes to conserve battery while waking instantly on movement.",
+      },
+      perfScroll: {
+        title: "Scroll wheel feel",
+        body: "Switch between tactile notched steps and free-spinning smooth scroll for long documents.",
+      },
+      motionDesktop: {
+        title: "Desktop adaptive smoothing",
+        body: "Filters slow hand micro-jitter on 240Hz displays while keeping fast cross-screen moves crisp and lag-free.",
+      },
+      motionStrength: {
+        title: "Smoothing strength",
+        body: "Higher values smooth slow jitter more aggressively; lower values feel closer to raw cursor input.",
+      },
+      motionResp: {
+        title: "Flick responsiveness",
+        body: "Higher values snap faster during quick hand moves; lower values add subtle glide to fast motion.",
+      },
+      motionMicro: {
+        title: "Micro-aim stabilization",
+        body: "Gently damps tiny movements below 350 px/s to steady precision clicks on small targets.",
+      },
+      motionRotation: {
+        title: "Grip angle rotation",
+        body: "Compensates for natural wrist tilt so horizontal swipes track level. Leave at 0 if your grip is straight.",
+      },
+      motionBypass: {
+        title: "Auto-bypass in games",
+        body: "Automatically suspends desktop smoothing when linked games or fullscreen windows are active.",
+      },
+      motionGaming: {
+        title: "Raw Accel gaming driver",
+        body: "Runs at kernel level with near-zero overhead and anti-cheat compatibility. Click Apply to games after tuning.",
+      },
+      motionRawMode: {
+        title: "Curve mode",
+        body: "Flat keeps a constant 1:1 speed. Natural and Synchronous combine low-speed precision with smooth fast flick gain.",
+      },
+      motionRawSmooth: {
+        title: "Output smoothing",
+        body: "0.0 ms is raw output; 1.5 to 5.0 ms smooths sensor micro-stepping cleanly on high-refresh monitors.",
+      },
+      motionRawSens: {
+        title: "Sensitivity scale",
+        body: "1.00x keeps your native DPI speed unchanged. Lower slows down; higher speeds up.",
+      },
+      profilesList: {
+        title: "Profile library",
+        body: "Each profile stores independent buttons, speed stages, and polling rate. The currently active profile cannot be deleted.",
+      },
+      profilesAutoSwitch: {
+        title: "App auto-switching",
+        body: "Linked apps activate this profile the instant their window gains focus and switch back when you leave.",
+      },
+      macrosSection: {
+        title: "Keyboard macros",
+        body: "Captures key taps and delays played from a single mouse button. Click any chip to remove a step before saving.",
+      },
+      lightingSection: {
+        title: "Hardware lighting",
+        body: "Updates mouse LEDs live; lowering brightness extends wireless battery runtime.",
+      },
+      settingsBehavior: {
+        title: "Background & tray behavior",
+        body: "Controls autostart and tray persistence so auto-switching and motion smoothing stay ready after reboot.",
+      },
+      settingsAppearance: {
+        title: "Theme & language",
+        body: "Follows Windows dark/light automatically or locks a theme, accent color, and full UI language.",
+      },
+    },
   },
 };

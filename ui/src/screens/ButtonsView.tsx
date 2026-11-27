@@ -4,6 +4,7 @@ import type { DeviceSnapshot, LayerName } from "../acl/transport";
 import {
   Badge,
   Button,
+  HelpTip,
   Inline,
   Popover,
   SegmentedControl,
@@ -60,16 +61,19 @@ export function ButtonsView({
       <SurfaceCard primaryContent={true} stableFrame={true} className="lg:col-span-8 min-w-0 h-full flex flex-col justify-between">
         <Stack gap="4" className="flex-1 min-h-0 justify-between">
           <div className="min-h-[40px] flex flex-wrap items-center justify-between gap-2">
-            <SegmentedControl
-              ariaLabel={vocab.layerPrimary}
-              size="sm"
-              value={layer}
-              onChange={onChangeLayer}
-              options={[
-                { value: "normal", label: vocab.layerPrimary, icon: <Layers size={14} strokeWidth={2} /> },
-                { value: "hypershift", label: vocab.layerSecondary },
-              ]}
-            />
+            <Inline gap="1" wrap={false}>
+              <SegmentedControl
+                ariaLabel={vocab.layerPrimary}
+                size="sm"
+                value={layer}
+                onChange={onChangeLayer}
+                options={[
+                  { value: "normal", label: vocab.layerPrimary, icon: <Layers size={14} strokeWidth={2} /> },
+                  { value: "hypershift", label: vocab.layerSecondary },
+                ]}
+              />
+              <HelpTip {...vocab.help.buttonsLayer} side="bottom" />
+            </Inline>
 
             <div className="flex flex-wrap items-center gap-2">
               {activatorLabel ? (
@@ -182,10 +186,13 @@ export function ButtonsView({
               ) : null}
             </Inline>
 
-            <Button variant="primary" size="md" onClick={onSaveOnboard}>
-              <Save size={16} strokeWidth={2} />
-              <span>{vocab.saveToMouse}</span>
-            </Button>
+            <Inline gap="2" wrap={false}>
+              <HelpTip {...vocab.help.buttonsSaveOnboard} />
+              <Button variant="primary" size="md" onClick={onSaveOnboard}>
+                <Save size={16} strokeWidth={2} />
+                <span>{vocab.saveToMouse}</span>
+              </Button>
+            </Inline>
           </div>
         </Stack>
       </SurfaceCard>

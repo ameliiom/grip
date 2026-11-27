@@ -4,6 +4,7 @@ import { BRAND_PRESETS } from "../design-system/theme";
 import {
   Button,
   ChoiceChips,
+  HelpTip,
   Inline,
   Slider,
   Stack,
@@ -42,6 +43,7 @@ export function LightingView({
             <Inline gap="2" wrap={false}>
               <Sun size={18} strokeWidth={2} />
               <h2 className="text-base font-bold">{vocab.lightingTitle}</h2>
+              <HelpTip {...vocab.help.lightingSection} side="bottom" />
             </Inline>
             <Inline gap="2" wrap={false}>
               <span className="text-sm text-[var(--fg-muted)]">{vocab.lightingControlLabel}</span>

@@ -43,7 +43,7 @@ export function NumberStepper({
   };
 
   return (
-    <div className="inline-flex items-center h-[var(--ctrl-md)] min-w-[208px] rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-0)] overflow-hidden focus-within:outline-2 focus-within:outline-[var(--brand)] focus-within:outline-offset-1">
+    <div className="inline-flex items-center h-[46px] min-[481px]:h-[var(--ctrl-md)] min-w-[208px] rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-0)] overflow-hidden focus-within:outline-2 focus-within:outline-[var(--brand)] focus-within:outline-offset-1">
       <button
         type="button"
         disabled={disabled || value <= min}
@@ -53,7 +53,7 @@ export function NumberStepper({
       >
         <Minus size={15} strokeWidth={2} />
       </button>
-      <div className="flex-1 min-w-[120px] flex items-center justify-center gap-1 px-2" dir="ltr">
+      <div className="flex-1 h-full min-w-[120px] flex items-center justify-center gap-1 px-2" dir="ltr">
         <input
           type="text"
           inputMode="numeric"
@@ -68,7 +68,7 @@ export function NumberStepper({
               e.currentTarget.blur();
             }
           }}
-          className="w-full min-w-[120px] border-0 outline-none bg-transparent text-center text-sm font-semibold tabular-nums text-[var(--fg)]"
+          className="w-full h-full min-w-[120px] border-0 outline-none bg-transparent text-center text-sm font-semibold tabular-nums text-[var(--fg)]"
         />
         {unit ? <span className="text-xs text-[var(--fg-muted)] shrink-0">{unit}</span> : null}
       </div>

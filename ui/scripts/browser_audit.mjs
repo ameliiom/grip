@@ -137,6 +137,22 @@ export default async function audit(b) {
       if (${w} >= 1024 && (!document.querySelector('header, nav, aside') || !document.querySelector('main'))) {
         issues.push('missing-app-shell-landmarks');
       }
+      if (${w} >= 1024 && document.querySelector('header, nav')) {
+        const mainInteractive = [...main.querySelectorAll('button, [role="button"], [role="switch"], [role="slider"], input')]
+          .filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).length;
+        if (mainInteractive >= 4) {
+          const guideBtn = [...document.querySelectorAll('[data-screen-guide]')].find((el) => {
+            const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
+          });
+          if (!guideBtn) issues.push('missing-screen-guide');
+          if (main.querySelector('[role="slider"], [role="switch"]')) {
+            const tipBtn = [...main.querySelectorAll('[data-help-tip]')].find((el) => {
+              const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
+            });
+            if (!tipBtn) issues.push('missing-inline-help-tips');
+          }
+        }
+      }
 
       // Competing Primary CTAs & brand-color overload check (strictly <= 2 brand-filled controls/badges)
       const brandProbe = document.createElement('span');
@@ -478,6 +494,25 @@ export default async function audit(b) {
       .filter((f) => f.w > 0 && f.h > 0);
 
     checkViewportOverflow('initial');
+    const guideTrigger = document.querySelector('[data-screen-guide]');
+    if (guideTrigger) {
+      guideTrigger.click();
+      await waitRaf();
+      const gContent = document.querySelector('[data-screen-guide-content]');
+      if (!gContent) {
+        out.push('screen-guide-did-not-open');
+      } else {
+        const gr = gContent.getBoundingClientRect();
+        if (gr.top < -2 || gr.bottom > window.innerHeight + 2 || gr.left < -2 || gr.right > window.innerWidth + 2) {
+          out.push('screen-guide-clipped:' + Math.round(gr.top) + ',' + Math.round(gr.bottom));
+        }
+        if ((gContent.innerText || '').trim().length < 20) {
+          out.push('screen-guide-empty');
+        }
+        guideTrigger.click();
+        await waitRaf();
+      }
+    }
     const baseNav = snapNav();
     const navButtons = [...document.querySelectorAll('[data-shift-probe="nav"] button, header nav button')].filter((el) => {
       const r = el.getBoundingClientRect();

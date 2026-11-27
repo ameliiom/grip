@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { DeviceSnapshot, RunningApp } from "../acl/transport";
 import {
   Button,
+  HelpTip,
   Inline,
   Popover,
   Stack,
@@ -109,6 +110,7 @@ export function ProfilesView({
               <Inline gap="2" wrap={false}>
                 <Gamepad2 size={18} strokeWidth={2} />
                 <h2 className="text-base font-bold">{vocab.profilesTitle}</h2>
+                <HelpTip {...vocab.help.profilesList} side="bottom" />
               </Inline>
 
               <Popover
@@ -289,7 +291,10 @@ export function ProfilesView({
       <SurfaceCard stableFrame={true} className="lg:col-span-7 min-w-0 h-full flex flex-col justify-between">
         <Stack gap="4" className="flex-1 justify-between">
           <Stack gap="4">
-            <h2 className="text-base font-bold">{vocab.autoSwitchAppsTitle}</h2>
+            <Inline gap="2" wrap={false}>
+              <h2 className="text-base font-bold">{vocab.autoSwitchAppsTitle}</h2>
+              <HelpTip {...vocab.help.profilesAutoSwitch} side="bottom" />
+            </Inline>
 
             <p className="text-xs text-[var(--fg-muted)]">{vocab.openAppsHint}</p>
 

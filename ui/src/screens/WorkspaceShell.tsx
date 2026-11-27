@@ -33,6 +33,7 @@ import {
   ChoiceChips,
   CommandPalette,
   Popover,
+  ScreenGuide,
   SegmentedControl,
   Stack,
   SurfaceCard,
@@ -55,12 +56,16 @@ export function WorkspaceShell({
   workspace,
   errorMsg,
   statusToast,
+  toastKey = 0,
   onClearToast,
   firmwareResult,
   section,
   paletteOpen,
   onPaletteOpenChange,
+  guideOpen = false,
+  onGuideOpenChange,
   applyingRawAccel = false,
+  hasUnappliedRawAccel = false,
   vocab,
   onSelectSection,
   onSelectDevice,
@@ -103,12 +108,16 @@ export function WorkspaceShell({
   workspace: WorkspaceSnapshot | null;
   errorMsg: string | null;
   statusToast: string | null;
+  toastKey?: number;
   onClearToast: () => void;
   firmwareResult: FirmwareCheckResult | null;
   section: NavSection;
   paletteOpen: boolean;
   onPaletteOpenChange: (open: boolean) => void;
+  guideOpen?: boolean;
+  onGuideOpenChange?: (open: boolean) => void;
   applyingRawAccel?: boolean;
+  hasUnappliedRawAccel?: boolean;
   vocab: Vocab;
   onSelectSection: (next: NavSection) => void;
   onSelectDevice: (deviceKey: string) => void;
@@ -422,6 +431,13 @@ export function WorkspaceShell({
           </span>
         ) : null}
 
+        <ScreenGuide
+          triggerLabel={vocab.screenGuideTrigger}
+          open={guideOpen}
+          onOpenChange={(open) => onGuideOpenChange?.(open)}
+          {...vocab.guides[section]}
+        />
+
         {desktopMode ? (
           <div className="inline-flex items-center gap-1 shrink-0" data-no-drag="true">
             <span aria-hidden="true" className="w-px h-5 bg-[var(--border)] shrink-0" />
@@ -564,6 +580,7 @@ export function WorkspaceShell({
           onUpdateSettings={onUpdateSettings}
           onApplyRawAccel={onApplyRawAccel}
           applyingRawAccel={applyingRawAccel}
+          hasUnappliedRawAccel={hasUnappliedRawAccel}
           onOpenRawAccelDownload={onOpenRawAccelDownload}
           onRefreshMotionStatus={onRefreshMotionStatus}
           onSelectPolling={onSelectPolling}
@@ -625,7 +642,7 @@ export function WorkspaceShell({
 
       {statusToast ? (
         <div
-          key={statusToast}
+          key={`${toastKey}-${statusToast}`}
           onAnimationEnd={onClearToast}
           className="fixed bottom-4 end-4 z-50 grip-toast-anim pointer-events-none"
         >

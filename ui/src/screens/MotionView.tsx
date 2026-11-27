@@ -1,4 +1,4 @@
-import { Activity, Download, Gamepad2, RefreshCw, RotateCcw, Sparkles, Zap } from "lucide-react";
+import { Activity, Download, Gamepad2, RefreshCw, Sparkles, Zap } from "lucide-react";
 import { useMemo } from "react";
 import type {
   AppSettings,
@@ -11,9 +11,9 @@ import type {
 import {
   Badge,
   Button,
-  ConfirmButton,
   HelpTip,
   Inline,
+  OptionReset,
   SegmentedControl,
   Slider,
   Stack,
@@ -21,7 +21,7 @@ import {
   SurfaceInset,
   Switch,
 } from "../design-system/primitives";
-import { formatLatencyMs, type Locale, type Vocab } from "../i18n/vocab";
+import { formatLatencyMs, formatResetOptionLabel, type Locale, type Vocab } from "../i18n/vocab";
 
 const PRESETS: Record<"light" | "balanced" | "silk", Pick<DesktopSmoothSettings, "strength" | "responsiveness" | "microPrecision">> = {
   light: { strength: 30, responsiveness: 85, microPrecision: 5 },
@@ -41,8 +41,6 @@ export function MotionView({
   applyingRawAccel = false,
   hasUnappliedRawAccel = false,
   onDiscardRawAccel,
-  onResetDesktopMotion,
-  onResetRawAccel,
   onOpenRawAccelDownload,
   onRefreshMotionStatus,
   onSelectPolling,
@@ -58,8 +56,6 @@ export function MotionView({
   applyingRawAccel?: boolean;
   hasUnappliedRawAccel?: boolean;
   onDiscardRawAccel: () => void;
-  onResetDesktopMotion: () => void;
-  onResetRawAccel: () => void;
   onOpenRawAccelDownload: () => void;
   onRefreshMotionStatus: () => void;
   onSelectPolling: (hz: number) => void;
@@ -145,15 +141,6 @@ export function MotionView({
               <Badge tone={smoothBadge.tone} showDot={true}>
                 {smoothBadge.text}
               </Badge>
-              <ConfirmButton
-                variant="ghost"
-                size="sm"
-                iconOnly={true}
-                icon={<RotateCcw size={14} strokeWidth={2} />}
-                label={vocab.resetDefaults}
-                confirmLabel={vocab.confirmReset}
-                onConfirm={onResetDesktopMotion}
-              />
               <Switch
                 ariaLabel={vocab.motionEnableLabel}
                 checked={ds.enabled}
@@ -205,7 +192,14 @@ export function MotionView({
                     <span className="text-xs font-semibold">{vocab.motionStrengthLabel}</span>
                     <HelpTip {...vocab.help.motionStrength} />
                   </Inline>
-                  <span className="text-xs font-bold tabular-nums">{ds.strength}%</span>
+                  <Inline gap="1" wrap={false}>
+                    <OptionReset
+                      changed={ds.strength !== 55}
+                      label={formatResetOptionLabel(vocab, "55%")}
+                      onReset={() => patchDesktop({ strength: 55, preset: "custom" })}
+                    />
+                    <span className="text-xs font-bold tabular-nums">{ds.strength}%</span>
+                  </Inline>
                 </Inline>
                 <Slider
                   ariaLabel={vocab.motionStrengthLabel}
@@ -225,7 +219,14 @@ export function MotionView({
                     <span className="text-xs font-semibold">{vocab.motionRespLabel}</span>
                     <HelpTip {...vocab.help.motionResp} />
                   </Inline>
-                  <span className="text-xs font-bold tabular-nums">{ds.responsiveness}%</span>
+                  <Inline gap="1" wrap={false}>
+                    <OptionReset
+                      changed={ds.responsiveness !== 65}
+                      label={formatResetOptionLabel(vocab, "65%")}
+                      onReset={() => patchDesktop({ responsiveness: 65, preset: "custom" })}
+                    />
+                    <span className="text-xs font-bold tabular-nums">{ds.responsiveness}%</span>
+                  </Inline>
                 </Inline>
                 <Slider
                   ariaLabel={vocab.motionRespLabel}
@@ -245,7 +246,14 @@ export function MotionView({
                     <span className="text-xs font-semibold">{vocab.motionMicroLabel}</span>
                     <HelpTip {...vocab.help.motionMicro} />
                   </Inline>
-                  <span className="text-xs font-bold tabular-nums">{ds.microPrecision}%</span>
+                  <Inline gap="1" wrap={false}>
+                    <OptionReset
+                      changed={ds.microPrecision !== 15}
+                      label={formatResetOptionLabel(vocab, "15%")}
+                      onReset={() => patchDesktop({ microPrecision: 15, preset: "custom" })}
+                    />
+                    <span className="text-xs font-bold tabular-nums">{ds.microPrecision}%</span>
+                  </Inline>
                 </Inline>
                 <Slider
                   ariaLabel={vocab.motionMicroLabel}
@@ -265,9 +273,16 @@ export function MotionView({
                     <span className="text-xs font-semibold">{vocab.motionRotationLabel}</span>
                     <HelpTip {...vocab.help.motionRotation} />
                   </Inline>
-                  <span className="text-xs font-bold tabular-nums" dir="ltr">
-                    {ds.rotationDeg > 0 ? `+${ds.rotationDeg}°` : `${ds.rotationDeg}°`}
-                  </span>
+                  <Inline gap="1" wrap={false}>
+                    <OptionReset
+                      changed={ds.rotationDeg !== 0}
+                      label={formatResetOptionLabel(vocab, "0°")}
+                      onReset={() => patchDesktop({ rotationDeg: 0 })}
+                    />
+                    <span className="text-xs font-bold tabular-nums" dir="ltr">
+                      {ds.rotationDeg > 0 ? `+${ds.rotationDeg}°` : `${ds.rotationDeg}°`}
+                    </span>
+                  </Inline>
                 </Inline>
                 <Slider
                   ariaLabel={vocab.motionRotationLabel}
@@ -289,6 +304,11 @@ export function MotionView({
                 <Inline gap="1" wrap={false}>
                   <span className="text-sm font-semibold">{vocab.motionBypassGamesLabel}</span>
                   <HelpTip {...vocab.help.motionBypass} />
+                  <OptionReset
+                    changed={!ds.bypassInGames}
+                    label={formatResetOptionLabel(vocab)}
+                    onReset={() => patchDesktop({ bypassInGames: true })}
+                  />
                 </Inline>
                 <span className="text-xs text-[var(--fg-muted)]">{vocab.motionBypassGamesHint}</span>
               </Stack>
@@ -347,9 +367,16 @@ export function MotionView({
 
               <SurfaceInset>
                 <Stack gap="2">
-                  <Inline gap="1" wrap={false}>
-                    <span className="text-xs font-semibold text-[var(--fg-muted)]">{vocab.motionRawAccelModeLabel}</span>
-                    <HelpTip {...vocab.help.motionRawMode} />
+                  <Inline gap="2" justify="between" wrap={false}>
+                    <Inline gap="1" wrap={false}>
+                      <span className="text-xs font-semibold text-[var(--fg-muted)]">{vocab.motionRawAccelModeLabel}</span>
+                      <HelpTip {...vocab.help.motionRawMode} />
+                    </Inline>
+                    <OptionReset
+                      changed={ra.mode !== "noaccel"}
+                      label={formatResetOptionLabel(vocab, vocab.motionModeFlat)}
+                      onReset={() => patchRawAccel({ mode: "noaccel" })}
+                    />
                   </Inline>
                   <SegmentedControl
                     ariaLabel={vocab.motionRawAccelModeLabel}
@@ -374,9 +401,16 @@ export function MotionView({
                         <span className="text-xs font-semibold">{vocab.motionRawAccelSmoothLabel}</span>
                         <HelpTip {...vocab.help.motionRawSmooth} />
                       </Inline>
-                      <span className="text-xs font-bold tabular-nums" dir="ltr">
-                        {(ra.outputSmoothingTenths / 10).toFixed(1)} ms
-                      </span>
+                      <Inline gap="1" wrap={false}>
+                        <OptionReset
+                          changed={ra.outputSmoothingTenths !== 0}
+                          label={formatResetOptionLabel(vocab, "0.0 ms")}
+                          onReset={() => patchRawAccel({ outputSmoothingTenths: 0 })}
+                        />
+                        <span className="text-xs font-bold tabular-nums" dir="ltr">
+                          {(ra.outputSmoothingTenths / 10).toFixed(1)} ms
+                        </span>
+                      </Inline>
                     </Inline>
                     <Slider
                       ariaLabel={vocab.motionRawAccelSmoothLabel}
@@ -396,9 +430,16 @@ export function MotionView({
                         <span className="text-xs font-semibold">{vocab.motionRawAccelSensLabel}</span>
                         <HelpTip {...vocab.help.motionRawSens} />
                       </Inline>
-                      <span className="text-xs font-bold tabular-nums" dir="ltr">
-                        {(ra.sensMultiplierPct / 100).toFixed(2)}x
-                      </span>
+                      <Inline gap="1" wrap={false}>
+                        <OptionReset
+                          changed={ra.sensMultiplierPct !== 100}
+                          label={formatResetOptionLabel(vocab, "1.00x")}
+                          onReset={() => patchRawAccel({ sensMultiplierPct: 100 })}
+                        />
+                        <span className="text-xs font-bold tabular-nums" dir="ltr">
+                          {(ra.sensMultiplierPct / 100).toFixed(2)}x
+                        </span>
+                      </Inline>
                     </Inline>
                     <Slider
                       ariaLabel={vocab.motionRawAccelSensLabel}
@@ -418,9 +459,16 @@ export function MotionView({
                         <span className="text-xs font-semibold">{vocab.motionRotationLabel}</span>
                         <HelpTip {...vocab.help.motionRotation} />
                       </Inline>
-                      <span className="text-xs font-bold tabular-nums" dir="ltr">
-                        {ra.rotationDeg > 0 ? `+${ra.rotationDeg}°` : `${ra.rotationDeg}°`}
-                      </span>
+                      <Inline gap="1" wrap={false}>
+                        <OptionReset
+                          changed={ra.rotationDeg !== 0}
+                          label={formatResetOptionLabel(vocab, "0°")}
+                          onReset={() => patchRawAccel({ rotationDeg: 0 })}
+                        />
+                        <span className="text-xs font-bold tabular-nums" dir="ltr">
+                          {ra.rotationDeg > 0 ? `+${ra.rotationDeg}°` : `${ra.rotationDeg}°`}
+                        </span>
+                      </Inline>
                     </Inline>
                     <Slider
                       ariaLabel={vocab.motionRotationLabel}
@@ -453,15 +501,6 @@ export function MotionView({
                     <span>{vocab.discardChanges}</span>
                   </Button>
                 ) : null}
-                <ConfirmButton
-                  variant="ghost"
-                  size="md"
-                  iconOnly={true}
-                  icon={<RotateCcw size={15} strokeWidth={2} />}
-                  label={vocab.resetDefaults}
-                  confirmLabel={vocab.confirmReset}
-                  onConfirm={onResetRawAccel}
-                />
               </div>
             </Stack>
           ) : (

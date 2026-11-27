@@ -1,13 +1,13 @@
-import { Moon, Plus, RotateCcw, Sliders, Trash2, Zap } from "lucide-react";
+import { Moon, Plus, Sliders, Trash2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { DeviceSnapshot } from "../acl/transport";
 import {
   Button,
   ChoiceChips,
-  ConfirmButton,
   HelpTip,
   Inline,
   NumberStepper,
+  OptionReset,
   SegmentedControl,
   Slider,
   Stack,
@@ -21,6 +21,7 @@ import {
   computeSleepChoices,
   formatLatencyMs,
   formatMinutesLabel,
+  formatResetOptionLabel,
   type Locale,
   type Vocab,
 } from "../i18n/vocab";
@@ -34,7 +35,6 @@ export function PerformanceView({
   onSelectPolling,
   onSetSleep,
   onSetScroll,
-  onResetPerformance,
 }: {
   device: DeviceSnapshot;
   locale: Locale;
@@ -44,12 +44,15 @@ export function PerformanceView({
   onSelectPolling: (hz: number) => void;
   onSetSleep: (minutes?: number, autoSleep?: boolean) => void;
   onSetScroll: (patch: { mode?: string; disabled?: string; acceleration?: string; smartReel?: string }) => void;
-  onResetPerformance: () => void;
 }) {
   const { capabilities, dpi } = device;
   const activeIdx = Math.max(0, Math.min(dpi.stages.length - 1, dpi.activeStage - 1));
   const currentStage = dpi.stages[activeIdx] ?? [1600, 1600];
   const defaultDpi = Math.min(capabilities.dpiMax, Math.max(capabilities.dpiMin, 1600));
+  const defaultPolling = capabilities.pollingOptions.includes(1000)
+    ? 1000
+    : (capabilities.pollingOptions[capabilities.pollingOptions.length - 1] ?? 1000);
+  const defaultSleep = capabilities.sleepMaxMinutes ? Math.min(capabilities.sleepMaxMinutes, 5) : 5;
 
   const [independentXY, setIndependentXY] = useState(currentStage[0] !== currentStage[1]);
   useEffect(() => {
@@ -115,14 +118,6 @@ export function PerformanceView({
               </Inline>
 
               <Inline gap="1" wrap={false}>
-                <ConfirmButton
-                  variant="ghost"
-                  size="sm"
-                  icon={<RotateCcw size={14} strokeWidth={2} />}
-                  label={vocab.resetDefaults}
-                  confirmLabel={vocab.confirmReset}
-                  onConfirm={onResetPerformance}
-                />
                 <Button
                   variant="secondary"
                   size="sm"
@@ -179,9 +174,16 @@ export function PerformanceView({
             <SurfaceInset>
               <Stack gap="4">
                 <Inline gap="2" justify="between" wrap={true}>
-                  <span className="text-sm font-semibold">
-                    {independentXY ? vocab.axisX : vocab.axisBoth}
-                  </span>
+                  <Inline gap="1" wrap={false}>
+                    <span className="text-sm font-semibold">
+                      {independentXY ? vocab.axisX : vocab.axisBoth}
+                    </span>
+                    <OptionReset
+                      changed={currentStage[0] !== defaultDpi}
+                      label={formatResetOptionLabel(vocab, `${defaultDpi} ${vocab.speedUnit}`)}
+                      onReset={() => updateCurrentStage(defaultDpi, independentXY ? currentStage[1] : defaultDpi)}
+                    />
+                  </Inline>
                   <NumberStepper
                     ariaLabel={independentXY ? vocab.axisX : vocab.axisBoth}
                     value={currentStage[0]}
@@ -215,7 +217,14 @@ export function PerformanceView({
                 {independentXY ? (
                   <Stack gap="4">
                     <Inline gap="2" justify="between" wrap={true}>
-                      <span className="text-sm font-semibold">{vocab.axisY}</span>
+                      <Inline gap="1" wrap={false}>
+                        <span className="text-sm font-semibold">{vocab.axisY}</span>
+                        <OptionReset
+                          changed={currentStage[1] !== defaultDpi}
+                          label={formatResetOptionLabel(vocab, `${defaultDpi} ${vocab.speedUnit}`)}
+                          onReset={() => updateCurrentStage(currentStage[0], defaultDpi)}
+                        />
+                      </Inline>
                       <NumberStepper
                         ariaLabel={vocab.axisY}
                         value={currentStage[1]}
@@ -244,6 +253,14 @@ export function PerformanceView({
                   <Inline gap="1" wrap={false}>
                     <span className="text-xs text-[var(--fg-muted)]">{vocab.independentAxes}</span>
                     <HelpTip {...vocab.help.perfAxes} />
+                    <OptionReset
+                      changed={independentXY}
+                      label={formatResetOptionLabel(vocab)}
+                      onReset={() => {
+                        setIndependentXY(false);
+                        updateCurrentStage(currentStage[0], currentStage[0]);
+                      }}
+                    />
                   </Inline>
                   <Switch
                     ariaLabel={vocab.independentAxes}
@@ -265,10 +282,17 @@ export function PerformanceView({
         {capabilities.pollingOptions.length > 0 && device.pollingHz !== null ? (
           <SurfaceCard stableFrame={true}>
             <Stack gap="4">
-              <Inline gap="2" wrap={false}>
-                <Zap size={17} strokeWidth={2} />
-                <h2 className="text-base font-bold">{vocab.pollingTitle}</h2>
-                <HelpTip {...vocab.help.perfPolling} side="bottom" />
+              <Inline gap="2" justify="between" wrap={false}>
+                <Inline gap="2" wrap={false}>
+                  <Zap size={17} strokeWidth={2} />
+                  <h2 className="text-base font-bold">{vocab.pollingTitle}</h2>
+                  <HelpTip {...vocab.help.perfPolling} side="bottom" />
+                </Inline>
+                <OptionReset
+                  changed={device.pollingHz !== defaultPolling}
+                  label={formatResetOptionLabel(vocab, formatLatencyMs(defaultPolling, locale))}
+                  onReset={() => onSelectPolling(defaultPolling)}
+                />
               </Inline>
 
               <SegmentedControl
@@ -316,7 +340,14 @@ export function PerformanceView({
 
               {sleepChoices.length > 0 && device.sleepMinutes !== null ? (
                 <Stack gap="2">
-                  <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.sleepAfterLabel}</span>
+                  <Inline gap="2" justify="between" wrap={false}>
+                    <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.sleepAfterLabel}</span>
+                    <OptionReset
+                      changed={device.sleepMinutes !== defaultSleep}
+                      label={formatResetOptionLabel(vocab, formatMinutesLabel(defaultSleep, locale))}
+                      onReset={() => onSetSleep(defaultSleep, undefined)}
+                    />
+                  </Inline>
                   <ChoiceChips
                     ariaLabel={vocab.sleepAfterLabel}
                     size="sm"
@@ -332,7 +363,14 @@ export function PerformanceView({
 
               {capabilities.hasAutoSleep && device.autoSleep !== null ? (
                 <Inline gap="2" justify="between" wrap={false}>
-                  <span className="text-sm">{vocab.autoSleepLabel}</span>
+                  <Inline gap="1" wrap={false}>
+                    <span className="text-sm">{vocab.autoSleepLabel}</span>
+                    <OptionReset
+                      changed={device.autoSleep}
+                      label={formatResetOptionLabel(vocab)}
+                      onReset={() => onSetSleep(undefined, false)}
+                    />
+                  </Inline>
                   <Switch
                     ariaLabel={vocab.autoSleepLabel}
                     checked={device.autoSleep}
@@ -352,7 +390,14 @@ export function PerformanceView({
                 <HelpTip {...vocab.help.perfScroll} />
               </Inline>
               <Stack gap="2">
-                <span className="text-xs text-[var(--fg-muted)]">{vocab.scrollModeLabel}</span>
+                <Inline gap="2" justify="between" wrap={false}>
+                  <span className="text-xs text-[var(--fg-muted)]">{vocab.scrollModeLabel}</span>
+                  <OptionReset
+                    changed={device.scroll.mode !== "tactile"}
+                    label={formatResetOptionLabel(vocab, vocab.scrollTactile)}
+                    onReset={() => onSetScroll({ mode: "tactile" })}
+                  />
+                </Inline>
                 <ChoiceChips
                   ariaLabel={vocab.scrollModeLabel}
                   size="sm"
@@ -366,7 +411,14 @@ export function PerformanceView({
                 />
               </Stack>
               <Stack gap="2">
-                <span className="text-xs text-[var(--fg-muted)]">{vocab.scrollAccelLabel}</span>
+                <Inline gap="2" justify="between" wrap={false}>
+                  <span className="text-xs text-[var(--fg-muted)]">{vocab.scrollAccelLabel}</span>
+                  <OptionReset
+                    changed={device.scroll.acceleration !== "off"}
+                    label={formatResetOptionLabel(vocab, vocab.scrollOffLabel)}
+                    onReset={() => onSetScroll({ acceleration: "off" })}
+                  />
+                </Inline>
                 <ChoiceChips
                   ariaLabel={vocab.scrollAccelLabel}
                   size="sm"
@@ -377,7 +429,14 @@ export function PerformanceView({
                 />
               </Stack>
               <Stack gap="2">
-                <span className="text-xs text-[var(--fg-muted)]">{vocab.smartReelLevelLabel}</span>
+                <Inline gap="2" justify="between" wrap={false}>
+                  <span className="text-xs text-[var(--fg-muted)]">{vocab.smartReelLevelLabel}</span>
+                  <OptionReset
+                    changed={device.scroll.smartReel !== "off"}
+                    label={formatResetOptionLabel(vocab, vocab.scrollOffLabel)}
+                    onReset={() => onSetScroll({ smartReel: "off" })}
+                  />
+                </Inline>
                 <ChoiceChips
                   ariaLabel={vocab.smartReelLevelLabel}
                   size="sm"

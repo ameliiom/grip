@@ -16,9 +16,10 @@ import {
   Badge,
   Button,
   ChoiceChips,
+  OptionReset,
   Slider,
 } from "../../design-system/primitives";
-import { BUTTON_LABELS, computeErgonomicStops, formatHumanAction, parseAction, type Locale, type Vocab } from "../../i18n/vocab";
+import { BUTTON_LABELS, computeErgonomicStops, formatHumanAction, formatResetOptionLabel, parseAction, type Locale, type Vocab } from "../../i18n/vocab";
 
 type ActionCategory = "keys" | "windows" | "mouse" | "turbo" | "speed" | "media" | "macros" | "disabled";
 
@@ -515,7 +516,14 @@ export function ActionInspector({
 
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.turboRateLabel}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.turboRateLabel}</span>
+                        <OptionReset
+                          changed={turboRate !== 25}
+                          label={formatResetOptionLabel(vocab, `25 ${vocab.perSecond}`)}
+                          onReset={() => setTurboRate(25)}
+                        />
+                      </div>
                       <span className="text-xs font-bold tabular-nums">
                         {turboRate} {vocab.perSecond}
                       </span>
@@ -525,6 +533,8 @@ export function ActionInspector({
                       min={1}
                       max={50}
                       step={1}
+                      defaultValue={25}
+                      resetHint={vocab.sliderResetHint}
                       value={turboRate}
                       onChange={setTurboRate}
                     />
@@ -572,7 +582,14 @@ export function ActionInspector({
                   className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-[var(--radius-md)] p-3 flex flex-col gap-2.5"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.clutchLabel}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-medium text-[var(--fg-muted)]">{vocab.clutchLabel}</span>
+                      <OptionReset
+                        changed={clutchDpi !== Math.min(dpiMax, Math.max(dpiMin, 400))}
+                        label={formatResetOptionLabel(vocab, `${Math.min(dpiMax, Math.max(dpiMin, 400))} ${vocab.speedUnit}`)}
+                        onReset={() => setClutchDpi(Math.min(dpiMax, Math.max(dpiMin, 400)))}
+                      />
+                    </div>
                     <bdi dir="ltr" className="text-xs font-bold tabular-nums">
                       {clutchDpi} {vocab.speedUnit}
                     </bdi>
@@ -583,6 +600,8 @@ export function ActionInspector({
                     max={dpiMax}
                     step={dpiStep}
                     stops={computeErgonomicStops(dpiMin, dpiMax, dpiStep)}
+                    defaultValue={Math.min(dpiMax, Math.max(dpiMin, 400))}
+                    resetHint={vocab.sliderResetHint}
                     value={clutchDpi}
                     onChange={setClutchDpi}
                   />

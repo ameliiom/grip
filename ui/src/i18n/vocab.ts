@@ -348,6 +348,10 @@ export function formatFriendlyAppName(exe: string): string {
   return words.join(" ") || clean || exe;
 }
 
+export function formatResetOptionLabel(vocab: Vocab, defaultText?: string): string {
+  return defaultText ? `${vocab.resetOption} (${defaultText})` : vocab.resetOption;
+}
+
 export const BUTTON_LABELS: Record<Locale, Record<string, string>> = {
   ar: {
     left: "الزر الأيسر",
@@ -653,8 +657,7 @@ export interface Vocab {
   shortcutsTitle: string;
   shortcutsSummary: string;
   appVersionLabel: string;
-  resetAppSettings: string;
-  resetAppSettingsTooltip: string;
+  resetOption: string;
   toastResetDefaults: string;
   toastDiscardedChanges: string;
   toastExportedFile: string;
@@ -918,8 +921,7 @@ export const VOCAB: Record<Locale, Vocab> = {
     shortcutsTitle: "اختصارات الكيبورد",
     shortcutsSummary: "Ctrl+K بحث · Ctrl+Z تراجع · Ctrl+Y إعادة · F1 شرح",
     appVersionLabel: "إصدار التطبيق",
-    resetAppSettings: "إعادة إعدادات التطبيق",
-    resetAppSettingsTooltip: "يعيد إعدادات المظهر والسلوك والتنعيم للافتراضي بدون مسح بروفايلات الماوس",
+    resetOption: "إرجاع للافتراضي",
     toastResetDefaults: "تمت الإعادة للوضع الافتراضي",
     toastDiscardedChanges: "تم التراجع عن التعديلات غير المطبّقة",
     toastExportedFile: "تم حفظ ملف النسخة الاحتياطية",
@@ -1321,8 +1323,7 @@ export const VOCAB: Record<Locale, Vocab> = {
     shortcutsTitle: "Keyboard shortcuts",
     shortcutsSummary: "Ctrl+K Search · Ctrl+Z Undo · Ctrl+Y Redo · F1 Guide",
     appVersionLabel: "App version",
-    resetAppSettings: "Reset app settings",
-    resetAppSettingsTooltip: "Resets app appearance, behavior, and smoothing without deleting mouse profiles",
+    resetOption: "Reset to default",
     toastResetDefaults: "Restored to defaults",
     toastDiscardedChanges: "Discarded unapplied changes",
     toastExportedFile: "Backup file saved",

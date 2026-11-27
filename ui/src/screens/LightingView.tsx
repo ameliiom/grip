@@ -6,13 +6,14 @@ import {
   ChoiceChips,
   HelpTip,
   Inline,
+  OptionReset,
   Slider,
   Stack,
   SurfaceCard,
   SurfaceInset,
   Switch,
 } from "../design-system/primitives";
-import type { Locale, Vocab } from "../i18n/vocab";
+import { formatResetOptionLabel, type Locale, type Vocab } from "../i18n/vocab";
 
 export function LightingView({
   device,
@@ -59,7 +60,14 @@ export function LightingView({
             <SurfaceInset key={zone.id}>
               <Stack gap="4">
                 <Inline gap="2" justify="between" wrap={true}>
-                  <span className="text-sm font-bold">{zone.name}</span>
+                  <Inline gap="1" wrap={false}>
+                    <span className="text-sm font-bold">{zone.name}</span>
+                    <OptionReset
+                      changed={zone.effect !== "spectrum"}
+                      label={formatResetOptionLabel(vocab)}
+                      onReset={() => onSetEffect(zone.name, "spectrum")}
+                    />
+                  </Inline>
                   <Button variant="ghost" size="sm" onClick={() => onSetOff(zone.name)}>
                     {vocab.categories.disabled}
                   </Button>
@@ -91,14 +99,23 @@ export function LightingView({
                 </Inline>
 
                 <Stack gap="1">
-                  <span className="text-xs text-[var(--fg-muted)]">
-                    {vocab.brightnessLabel}: {zone.brightness}%
-                  </span>
+                  <Inline gap="2" justify="between" wrap={false}>
+                    <span className="text-xs text-[var(--fg-muted)]">
+                      {vocab.brightnessLabel}: {zone.brightness}%
+                    </span>
+                    <OptionReset
+                      changed={zone.brightness !== 100}
+                      label={formatResetOptionLabel(vocab, "100%")}
+                      onReset={() => onSetBrightness(zone.name, 100)}
+                    />
+                  </Inline>
                   <Slider
                     ariaLabel={vocab.brightnessLabel}
                     min={0}
                     max={100}
                     step={5}
+                    defaultValue={100}
+                    resetHint={vocab.sliderResetHint}
                     value={zone.brightness}
                     onChange={(pct) => onSetBrightness(zone.name, pct)}
                   />

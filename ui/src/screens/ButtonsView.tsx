@@ -1,4 +1,4 @@
-import { Layers, RotateCcw, Save } from "lucide-react";
+import { Layers, Save } from "lucide-react";
 import { useState } from "react";
 import type { DeviceSnapshot, LayerName } from "../acl/transport";
 import {
@@ -25,7 +25,6 @@ export function ButtonsView({
   onChangeLayer,
   onSetButton,
   onResetButton,
-  onRestoreAll,
   onSaveOnboard,
   onPutBackOnboard,
 }: {
@@ -38,7 +37,6 @@ export function ButtonsView({
   onChangeLayer: (layer: LayerName) => void;
   onSetButton: (button: string, layer: LayerName, action: string) => void;
   onResetButton: (button: string, layer: LayerName) => void;
-  onRestoreAll: () => void;
   onSaveOnboard: () => void;
   onPutBackOnboard: () => void;
 }) {
@@ -116,16 +114,6 @@ export function ButtonsView({
           {/* Bottom On-Board Memory Action Bar */}
           <div className="pt-3 border-t border-[var(--border)] flex flex-wrap items-center justify-between gap-3">
             <Inline gap="2" wrap={true}>
-              <ConfirmButton
-                variant="ghost"
-                size="md"
-                icon={<RotateCcw size={15} strokeWidth={2} />}
-                label={vocab.restoreAllButtons}
-                confirmLabel={vocab.confirmRestore}
-                title={vocab.confirmRestoreAllTitle}
-                onConfirm={onRestoreAll}
-              />
-
               {device.onboard ? (
                 <ConfirmButton
                   variant="ghost"

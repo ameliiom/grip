@@ -104,10 +104,6 @@ export function WorkspaceShell({
   onUpdateSettings,
   onApplyRawAccel,
   onDiscardRawAccel,
-  onResetDesktopMotion,
-  onResetRawAccel,
-  onResetPerformance,
-  onResetAppSettings,
   onOpenRawAccelDownload,
   onRefreshMotionStatus,
   onCheckFirmware,
@@ -166,10 +162,6 @@ export function WorkspaceShell({
   onUpdateSettings: (settings: AppSettings) => void;
   onApplyRawAccel: (settings: RawAccelSettings) => void;
   onDiscardRawAccel: () => void;
-  onResetDesktopMotion: () => void;
-  onResetRawAccel: () => void;
-  onResetPerformance: () => void;
-  onResetAppSettings: () => void;
   onOpenRawAccelDownload: () => void;
   onRefreshMotionStatus: () => void;
   onCheckFirmware: () => void;
@@ -268,6 +260,12 @@ export function WorkspaceShell({
             label: vocab.saveToMouse,
             group: vocab.navButtons,
             onSelect: onSaveOnboard,
+          },
+          {
+            id: "restore-all-buttons",
+            label: vocab.restoreAllButtons,
+            group: vocab.navButtons,
+            onSelect: onRestoreAll,
           },
         ]
       : []),
@@ -584,7 +582,6 @@ export function WorkspaceShell({
           onChangeLayer={setLayer}
           onSetButton={onSetButton}
           onResetButton={onResetButton}
-          onRestoreAll={onRestoreAll}
           onSaveOnboard={onSaveOnboard}
           onPutBackOnboard={onPutBackOnboard}
         />
@@ -600,7 +597,6 @@ export function WorkspaceShell({
           onSelectPolling={onSelectPolling}
           onSetSleep={onSetSleep}
           onSetScroll={onSetScroll}
-          onResetPerformance={onResetPerformance}
         />
       ) : null}
 
@@ -617,8 +613,6 @@ export function WorkspaceShell({
           applyingRawAccel={applyingRawAccel}
           hasUnappliedRawAccel={hasUnappliedRawAccel}
           onDiscardRawAccel={onDiscardRawAccel}
-          onResetDesktopMotion={onResetDesktopMotion}
-          onResetRawAccel={onResetRawAccel}
           onOpenRawAccelDownload={onOpenRawAccelDownload}
           onRefreshMotionStatus={onRefreshMotionStatus}
           onSelectPolling={onSelectPolling}
@@ -674,7 +668,6 @@ export function WorkspaceShell({
           firmwareResult={firmwareResult}
           vocab={vocab}
           onUpdateSettings={onUpdateSettings}
-          onResetAppSettings={onResetAppSettings}
           onCheckFirmware={onCheckFirmware}
           onCopyReport={onCopyReport}
           onOpenFolder={onOpenFolder}

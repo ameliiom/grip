@@ -544,6 +544,36 @@ export default async function audit(b) {
         out.push('confirm-action-did-not-disarm');
       }
     }
+    const optionResets = [...document.querySelectorAll('[data-option-reset="true"]')];
+    for (const el of optionResets) {
+      if (!(el.getAttribute('title') || '').trim() || !(el.getAttribute('aria-label') || '').trim()) {
+        out.push('option-reset-missing-tooltip');
+        break;
+      }
+    }
+    const visibleReset = optionResets.find((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden' && !el.disabled;
+    });
+    if (visibleReset) {
+      const dialogsBefore = document.querySelectorAll('[role="dialog"]').length;
+      const framesBeforeReset = snapFrames();
+      visibleReset.click();
+      await waitRaf();
+      if (document.querySelectorAll('[role="dialog"]').length > dialogsBefore) {
+        out.push('option-reset-opened-modal');
+      }
+      const framesAfterReset = snapFrames();
+      if (framesBeforeReset.length > 0 && framesAfterReset.length === framesBeforeReset.length) {
+        for (let i = 0; i < framesAfterReset.length; i++) {
+          const a = framesBeforeReset[i], c = framesAfterReset[i];
+          if (Math.abs(c.x - a.x) > 4 || Math.abs(c.y - a.y) > 4 || Math.abs(c.w - a.w) > 4 || Math.abs(c.h - a.h) > 4) {
+            out.push('option-reset-shifted-layout:' + Math.round(Math.abs(c.h - a.h)) + 'px');
+            break;
+          }
+        }
+      }
+    }
     const baseNav = snapNav();
     const navButtons = [...document.querySelectorAll('[data-shift-probe="nav"] button, header nav button')].filter((el) => {
       const r = el.getBoundingClientRect();

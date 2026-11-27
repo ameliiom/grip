@@ -8,6 +8,7 @@ export { HelpTip } from "./HelpTip";
 export { TextInput } from "./Input";
 export { AppShell, Inline, Stack, SurfaceCard, SurfaceInset } from "./Layout";
 export { NumberStepper } from "./NumberStepper";
+export { OptionReset } from "./OptionReset";
 export { Popover } from "./Popover";
 export { ScreenGuide } from "./ScreenGuide";
 export { SegmentedControl, type SegmentOption } from "./SegmentedControl";

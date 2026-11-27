@@ -397,62 +397,6 @@ export function App() {
     handleUpdateSettings({ ...workspace.settings, rawAccel: appliedRawAccel }, vocab.toastDiscardedChanges);
   }, [appliedRawAccel, handleUpdateSettings, vocab.toastDiscardedChanges, workspace]);
 
-  const handleResetDesktopMotion = useCallback(() => {
-    handleUpdateSettings({ ...settings, desktopSmooth: { ...DEFAULT_SETTINGS.desktopSmooth } }, vocab.toastResetDefaults);
-  }, [handleUpdateSettings, settings, vocab.toastResetDefaults]);
-
-  const handleResetRawAccel = useCallback(() => {
-    const defRaw = { ...DEFAULT_SETTINGS.rawAccel };
-    if (workspace?.rawAccelStatus.driverRunning) {
-      handleApplyRawAccel(defRaw, vocab.toastResetDefaults);
-    } else {
-      handleUpdateSettings({ ...settings, rawAccel: defRaw }, vocab.toastResetDefaults);
-    }
-  }, [handleApplyRawAccel, handleUpdateSettings, settings, vocab.toastResetDefaults, workspace?.rawAccelStatus.driverRunning]);
-
-  const handleResetPerformance = useCallback(async () => {
-    const dev = workspace?.activeDevice;
-    if (!dev) return;
-    const caps = dev.capabilities;
-    const snapDpi = (v: number) => {
-      const c = Math.min(caps.dpiMax, Math.max(caps.dpiMin, v));
-      return caps.dpiMin + Math.round((c - caps.dpiMin) / caps.dpiStep) * caps.dpiStep;
-    };
-    const stages: [number, number][] = [800, 1600, 2400, 3200]
-      .slice(0, Math.max(1, dev.dpi.maxStages))
-      .map((v) => {
-        const s = snapDpi(v);
-        return [s, s];
-      });
-    await run({
-      type: "setDpiStages",
-      deviceKey: dev.deviceKey,
-      activeStage: Math.min(2, stages.length),
-      stages,
-    });
-    if (caps.pollingOptions.length > 0 && dev.pollingHz !== null) {
-      const targetHz = caps.pollingOptions.includes(1000)
-        ? 1000
-        : (caps.pollingOptions[caps.pollingOptions.length - 1] ?? dev.pollingHz);
-      if (dev.pollingHz !== targetHz) {
-        await run({ type: "setPolling", deviceKey: dev.deviceKey, hz: targetHz });
-      }
-    }
-    if (caps.sleepMaxMinutes && dev.sleepMinutes !== null) {
-      await run({
-        type: "setSleep",
-        deviceKey: dev.deviceKey,
-        minutes: Math.min(caps.sleepMaxMinutes, 5),
-        autoSleep: caps.hasAutoSleep ? false : undefined,
-      });
-    }
-    showToast(vocab.toastResetDefaults);
-  }, [run, showToast, vocab.toastResetDefaults, workspace?.activeDevice]);
-
-  const handleResetAppSettings = useCallback(() => {
-    handleUpdateSettings({ ...DEFAULT_SETTINGS, locale: settings.locale }, vocab.toastResetDefaults);
-  }, [handleUpdateSettings, settings.locale, vocab.toastResetDefaults]);
-
   return (
     <WorkspaceShell
       workspace={workspace}
@@ -528,10 +472,6 @@ export function App() {
       onUpdateSettings={(next) => handleUpdateSettings(next)}
       onApplyRawAccel={(raw: RawAccelSettings) => handleApplyRawAccel(raw)}
       onDiscardRawAccel={handleDiscardRawAccel}
-      onResetDesktopMotion={handleResetDesktopMotion}
-      onResetRawAccel={handleResetRawAccel}
-      onResetPerformance={() => void handleResetPerformance()}
-      onResetAppSettings={handleResetAppSettings}
       onOpenRawAccelDownload={() => void run({ type: "openRawAccelDownload" })}
       onRefreshMotionStatus={() => void run({ type: "refreshMotionStatus" })}
       onCheckFirmware={() => void run({ type: "checkFirmware", deviceKey: devKey })}

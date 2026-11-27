@@ -1,13 +1,14 @@
-import { CheckCircle2, ChevronDown, Copy, FolderOpen, Monitor, Moon, Palette, RefreshCw, RotateCcw, Sun } from "lucide-react";
+import { CheckCircle2, ChevronDown, Copy, FolderOpen, Monitor, Moon, Palette, RefreshCw, Sun } from "lucide-react";
 import { useState } from "react";
 import type { AppSettings, DeviceSnapshot, FirmwareCheckResult } from "../acl/transport";
 import { BrandColorPicker } from "../design-system/BrandColorPicker";
+import { DEFAULT_BRAND_HEX } from "../design-system/theme";
 import {
   Badge,
   Button,
-  ConfirmButton,
   HelpTip,
   Inline,
+  OptionReset,
   SegmentedControl,
   Slider,
   Stack,
@@ -15,7 +16,7 @@ import {
   SurfaceInset,
   Switch,
 } from "../design-system/primitives";
-import { cleanDeviceDisplayName, type Locale, type Vocab } from "../i18n/vocab";
+import { cleanDeviceDisplayName, formatResetOptionLabel, type Locale, type Vocab } from "../i18n/vocab";
 
 export function SettingsView({
   settings,
@@ -25,7 +26,6 @@ export function SettingsView({
   firmwareResult,
   vocab,
   onUpdateSettings,
-  onResetAppSettings,
   onCheckFirmware,
   onCopyReport,
   onOpenFolder,
@@ -37,7 +37,6 @@ export function SettingsView({
   firmwareResult: FirmwareCheckResult | null;
   vocab: Vocab;
   onUpdateSettings: (next: AppSettings) => void;
-  onResetAppSettings: () => void;
   onCheckFirmware: () => void;
   onCopyReport: () => Promise<void>;
   onOpenFolder: () => void;
@@ -54,26 +53,22 @@ export function SettingsView({
       {/* Startup & Behavior */}
       <SurfaceCard primaryContent={true} stableFrame={true} className="lg:col-span-7 min-w-0 h-full">
         <Stack gap="2">
-          <Inline gap="2" justify="between" wrap={true}>
-            <Inline gap="2" wrap={false}>
-              <h2 className="text-base font-bold">{vocab.settingsBehaviorTitle}</h2>
-              <HelpTip {...vocab.help.settingsBehavior} side="bottom" />
-            </Inline>
-            <ConfirmButton
-              variant="ghost"
-              size="sm"
-              icon={<RotateCcw size={14} strokeWidth={2} />}
-              label={vocab.resetAppSettings}
-              confirmLabel={vocab.confirmReset}
-              title={vocab.resetAppSettingsTooltip}
-              onConfirm={onResetAppSettings}
-            />
+          <Inline gap="2" wrap={false}>
+            <h2 className="text-base font-bold">{vocab.settingsBehaviorTitle}</h2>
+            <HelpTip {...vocab.help.settingsBehavior} side="bottom" />
           </Inline>
 
           <SurfaceInset>
             <Inline gap="2" justify="between" wrap={false}>
               <Stack gap="1">
-                <span className="text-sm font-semibold">{vocab.autostartLabel}</span>
+                <Inline gap="1" wrap={false}>
+                  <span className="text-sm font-semibold">{vocab.autostartLabel}</span>
+                  <OptionReset
+                    changed={settings.autostart}
+                    label={formatResetOptionLabel(vocab)}
+                    onReset={() => patch({ autostart: false })}
+                  />
+                </Inline>
                 <span className="text-xs text-[var(--fg-muted)]">{vocab.autostartHint}</span>
               </Stack>
               <Switch
@@ -87,7 +82,14 @@ export function SettingsView({
           <SurfaceInset>
             <Inline gap="2" justify="between" wrap={true}>
               <Stack gap="1">
-                <span className="text-sm font-semibold">{vocab.closeBehaviorLabel}</span>
+                <Inline gap="1" wrap={false}>
+                  <span className="text-sm font-semibold">{vocab.closeBehaviorLabel}</span>
+                  <OptionReset
+                    changed={!settings.closeToTray}
+                    label={formatResetOptionLabel(vocab, vocab.closeToTrayOption)}
+                    onReset={() => patch({ closeToTray: true })}
+                  />
+                </Inline>
                 <span className="text-xs text-[var(--fg-muted)]">{vocab.closeBehaviorHint}</span>
               </Stack>
               <SegmentedControl
@@ -106,7 +108,14 @@ export function SettingsView({
           <SurfaceInset>
             <Inline gap="2" justify="between" wrap={false}>
               <Stack gap="1">
-                <span className="text-sm font-semibold">{vocab.popupsLabel}</span>
+                <Inline gap="1" wrap={false}>
+                  <span className="text-sm font-semibold">{vocab.popupsLabel}</span>
+                  <OptionReset
+                    changed={!settings.popups}
+                    label={formatResetOptionLabel(vocab)}
+                    onReset={() => patch({ popups: true })}
+                  />
+                </Inline>
                 <span className="text-xs text-[var(--fg-muted)]">{vocab.popupsHint}</span>
               </Stack>
               <Switch
@@ -120,7 +129,14 @@ export function SettingsView({
           <SurfaceInset>
             <Inline gap="2" justify="between" wrap={false}>
               <Stack gap="1">
-                <span className="text-sm font-semibold">{vocab.autoSwitchLabel}</span>
+                <Inline gap="1" wrap={false}>
+                  <span className="text-sm font-semibold">{vocab.autoSwitchLabel}</span>
+                  <OptionReset
+                    changed={!settings.autoSwitch}
+                    label={formatResetOptionLabel(vocab)}
+                    onReset={() => patch({ autoSwitch: true })}
+                  />
+                </Inline>
                 <span className="text-xs text-[var(--fg-muted)]">{vocab.autoSwitchHint}</span>
               </Stack>
               <Switch
@@ -134,7 +150,14 @@ export function SettingsView({
           <SurfaceInset>
             <Stack gap="4">
               <Inline gap="2" justify="between" wrap={false}>
-                <span className="text-sm font-semibold">{vocab.lowBatteryAlertLabel}</span>
+                <Inline gap="1" wrap={false}>
+                  <span className="text-sm font-semibold">{vocab.lowBatteryAlertLabel}</span>
+                  <OptionReset
+                    changed={!settings.batteryWarning}
+                    label={formatResetOptionLabel(vocab)}
+                    onReset={() => patch({ batteryWarning: true })}
+                  />
+                </Inline>
                 <Switch
                   ariaLabel={vocab.lowBatteryAlertLabel}
                   checked={settings.batteryWarning}
@@ -145,7 +168,14 @@ export function SettingsView({
                 <Stack gap="2">
                   <Inline gap="2" justify="between" wrap={false}>
                     <span className="text-xs text-[var(--fg-muted)]">{vocab.lowBatteryLevelLabel}</span>
-                    <span className="text-xs font-bold tabular-nums">{settings.batteryWarningAt}%</span>
+                    <Inline gap="1" wrap={false}>
+                      <OptionReset
+                        changed={settings.batteryWarningAt !== 15}
+                        label={formatResetOptionLabel(vocab, "15%")}
+                        onReset={() => patch({ batteryWarningAt: 15 })}
+                      />
+                      <span className="text-xs font-bold tabular-nums">{settings.batteryWarningAt}%</span>
+                    </Inline>
                   </Inline>
                   <Slider
                     ariaLabel={vocab.lowBatteryLevelLabel}
@@ -175,7 +205,14 @@ export function SettingsView({
             </Inline>
 
             <Inline gap="2" justify="between" wrap={true}>
-              <span className="text-sm font-medium">{vocab.themeLabel}</span>
+              <Inline gap="1" wrap={false}>
+                <span className="text-sm font-medium">{vocab.themeLabel}</span>
+                <OptionReset
+                  changed={settings.theme !== "system"}
+                  label={formatResetOptionLabel(vocab, vocab.themeSystem)}
+                  onReset={() => patch({ theme: "system" })}
+                />
+              </Inline>
               <SegmentedControl
                 ariaLabel={vocab.themeLabel}
                 size="sm"
@@ -190,7 +227,14 @@ export function SettingsView({
             </Inline>
 
             <Inline gap="2" justify="between" wrap={true}>
-              <span className="text-sm font-medium">{vocab.languageLabel}</span>
+              <Inline gap="1" wrap={false}>
+                <span className="text-sm font-medium">{vocab.languageLabel}</span>
+                <OptionReset
+                  changed={settings.locale !== "ar"}
+                  label={formatResetOptionLabel(vocab, "العربية")}
+                  onReset={() => patch({ locale: "ar" })}
+                />
+              </Inline>
               <SegmentedControl
                 ariaLabel={vocab.languageLabel}
                 size="sm"
@@ -204,7 +248,14 @@ export function SettingsView({
             </Inline>
 
             <Inline gap="2" justify="between" wrap={true}>
-              <span className="text-sm font-medium">{vocab.accentColorLabel}</span>
+              <Inline gap="1" wrap={false}>
+                <span className="text-sm font-medium">{vocab.accentColorLabel}</span>
+                <OptionReset
+                  changed={settings.brandHex.toLowerCase() !== DEFAULT_BRAND_HEX}
+                  label={formatResetOptionLabel(vocab)}
+                  onReset={() => patch({ brandHex: DEFAULT_BRAND_HEX })}
+                />
+              </Inline>
               <BrandColorPicker
                 value={settings.brandHex}
                 label={vocab.accentColorLabel}

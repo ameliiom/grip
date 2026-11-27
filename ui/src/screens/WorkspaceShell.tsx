@@ -60,6 +60,7 @@ export function WorkspaceShell({
   section,
   paletteOpen,
   onPaletteOpenChange,
+  applyingRawAccel = false,
   vocab,
   onSelectSection,
   onSelectDevice,
@@ -107,6 +108,7 @@ export function WorkspaceShell({
   section: NavSection;
   paletteOpen: boolean;
   onPaletteOpenChange: (open: boolean) => void;
+  applyingRawAccel?: boolean;
   vocab: Vocab;
   onSelectSection: (next: NavSection) => void;
   onSelectDevice: (deviceKey: string) => void;
@@ -561,6 +563,7 @@ export function WorkspaceShell({
           vocab={vocab}
           onUpdateSettings={onUpdateSettings}
           onApplyRawAccel={onApplyRawAccel}
+          applyingRawAccel={applyingRawAccel}
           onOpenRawAccelDownload={onOpenRawAccelDownload}
           onRefreshMotionStatus={onRefreshMotionStatus}
           onSelectPolling={onSelectPolling}

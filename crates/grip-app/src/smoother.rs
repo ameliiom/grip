@@ -259,7 +259,7 @@ mod win {
         GetSystemMetrics, KillTimer, PostThreadMessageW, RegisterClassW, SetCursorPos, SetTimer, SetWindowsHookExW,
         TranslateMessage, UnhookWindowsHookEx, HHOOK, LLMHF_INJECTED, LLMHF_LOWER_IL_INJECTED, MSG, MSLLHOOKSTRUCT,
         SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, WH_MOUSE_LL, WM_APP,
-        WM_LBUTTONDOWN, WM_MBUTTONDOWN, WM_MOUSEMOVE, WM_QUIT, WM_RBUTTONDOWN, WM_TIMER, WNDCLASSW,
+        WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MOUSEMOVE, WM_QUIT, WM_RBUTTONDOWN, WM_TIMER, WNDCLASSW,
     };
 
     const WM_SYNC_SMOOTHER: u32 = WM_APP + 41;
@@ -294,6 +294,11 @@ mod win {
         static LIVE_CFG: RefCell<DesktopSmoothSettings> = RefCell::new(DesktopSmoothSettings::default());
         static BRIDGE_HWND: Cell<HWND> = const { Cell::new(null_mut()) };
         static IN_SYNTHETIC_SET: Cell<bool> = const { Cell::new(false) };
+        static CACHED_BOUNDS: Cell<(i32, i32, i32, i32)> = const { Cell::new((0, 0, 1920, 1080)) };
+        static BOUNDS_AT: Cell<Option<Instant>> = const { Cell::new(None) };
+        static SETTLE_ACTIVE: Cell<bool> = const { Cell::new(false) };
+        static LAST_INJECTED: Cell<Option<(i32, i32, Instant)>> = const { Cell::new(None) };
+        static LEFT_DOWN: Cell<bool> = const { Cell::new(false) };
     }
 
     fn shared() -> &'static Mutex<SharedState> {
@@ -305,12 +310,33 @@ mod win {
     }
 
     fn virtual_bounds() -> (i32, i32, i32, i32) {
+        let need_refresh = BOUNDS_AT.with(|at| at.get().is_none_or(|t| t.elapsed().as_secs() >= 2));
+        if !need_refresh {
+            return CACHED_BOUNDS.with(Cell::get);
+        }
         unsafe {
             let x = GetSystemMetrics(SM_XVIRTUALSCREEN);
             let y = GetSystemMetrics(SM_YVIRTUALSCREEN);
             let w = GetSystemMetrics(SM_CXVIRTUALSCREEN).max(1);
             let h = GetSystemMetrics(SM_CYVIRTUALSCREEN).max(1);
-            (x, y, x + w - 1, y + h - 1)
+            let bounds = (x, y, x + w - 1, y + h - 1);
+            CACHED_BOUNDS.with(|b| b.set(bounds));
+            BOUNDS_AT.with(|at| at.set(Some(Instant::now())));
+            bounds
+        }
+    }
+
+    unsafe fn set_settle_timer(hwnd: HWND, active: bool) {
+        if hwnd.is_null() {
+            SETTLE_ACTIVE.with(|f| f.set(false));
+            return;
+        }
+        if active && !SETTLE_ACTIVE.with(Cell::get) {
+            SetTimer(hwnd, TIMER_SETTLE, 4, None);
+            SETTLE_ACTIVE.with(|f| f.set(true));
+        } else if !active && SETTLE_ACTIVE.with(Cell::get) {
+            KillTimer(hwnd, TIMER_SETTLE);
+            SETTLE_ACTIVE.with(|f| f.set(false));
         }
     }
 
@@ -392,6 +418,9 @@ mod win {
         };
         let want = cfg.enabled;
         LIVE_CFG.with(|c| *c.borrow_mut() = cfg);
+        BOUNDS_AT.with(|at| at.set(None));
+        LEFT_DOWN.with(|f| f.set(false));
+        LAST_INJECTED.with(|f| f.set(None));
 
         let cur = HOOK_HANDLE.with(Cell::get);
         if want && cur.is_null() {
@@ -402,10 +431,7 @@ mod win {
                 ENGINE.with(|e| e.borrow_mut().reset());
             }
         } else if !want && !cur.is_null() {
-            let hwnd = BRIDGE_HWND.with(Cell::get);
-            if !hwnd.is_null() {
-                KillTimer(hwnd, TIMER_SETTLE);
-            }
+            set_settle_timer(BRIDGE_HWND.with(Cell::get), false);
             UnhookWindowsHookEx(cur);
             HOOK_HANDLE.with(|c| c.set(null_mut()));
             HOOK_ACTIVE.store(false, Ordering::Release);
@@ -417,13 +443,16 @@ mod win {
 
     unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
         if msg == WM_TIMER && wparam == TIMER_SETTLE {
-            if !HOOK_ACTIVE.load(Ordering::Relaxed) || PAUSED_FOR_GAME.load(Ordering::Relaxed) {
-                KillTimer(hwnd, TIMER_SETTLE);
+            if !HOOK_ACTIVE.load(Ordering::Relaxed)
+                || PAUSED_FOR_GAME.load(Ordering::Relaxed)
+                || LEFT_DOWN.with(Cell::get)
+            {
+                set_settle_timer(hwnd, false);
                 return 0;
             }
             let mut pt: POINT = zeroed();
             if GetCursorPos(&mut pt) == 0 {
-                KillTimer(hwnd, TIMER_SETTLE);
+                set_settle_timer(hwnd, false);
                 return 0;
             }
             let bounds = virtual_bounds();
@@ -434,15 +463,16 @@ mod win {
             });
             match res {
                 Some((nx, ny, more)) => {
+                    LAST_INJECTED.with(|f| f.set(Some((nx, ny, now))));
                     IN_SYNTHETIC_SET.with(|f| f.set(true));
                     SetCursorPos(nx, ny);
                     IN_SYNTHETIC_SET.with(|f| f.set(false));
                     if !more {
-                        KillTimer(hwnd, TIMER_SETTLE);
+                        set_settle_timer(hwnd, false);
                     }
                 }
                 None => {
-                    KillTimer(hwnd, TIMER_SETTLE);
+                    set_settle_timer(hwnd, false);
                 }
             }
             return 0;
@@ -455,23 +485,41 @@ mod win {
             return CallNextHookEx(null_mut(), n_code, wparam, lparam);
         }
         let msg = wparam as u32;
-        if msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN {
+        if msg == WM_LBUTTONDOWN {
+            LEFT_DOWN.with(|f| f.set(true));
             ENGINE.with(|e| e.borrow_mut().on_button_down());
-            let hwnd = BRIDGE_HWND.with(Cell::get);
-            if !hwnd.is_null() {
-                KillTimer(hwnd, TIMER_SETTLE);
-            }
+            set_settle_timer(BRIDGE_HWND.with(Cell::get), false);
+            return CallNextHookEx(null_mut(), n_code, wparam, lparam);
+        }
+        if msg == WM_LBUTTONUP {
+            LEFT_DOWN.with(|f| f.set(false));
+            ENGINE.with(|e| e.borrow_mut().reset());
+            set_settle_timer(BRIDGE_HWND.with(Cell::get), false);
+            return CallNextHookEx(null_mut(), n_code, wparam, lparam);
+        }
+        if msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN {
+            ENGINE.with(|e| e.borrow_mut().on_button_down());
+            set_settle_timer(BRIDGE_HWND.with(Cell::get), false);
             return CallNextHookEx(null_mut(), n_code, wparam, lparam);
         }
         if msg != WM_MOUSEMOVE {
             return CallNextHookEx(null_mut(), n_code, wparam, lparam);
         }
-        if PAUSED_FOR_GAME.load(Ordering::Relaxed) || IN_SYNTHETIC_SET.with(Cell::get) {
+        if PAUSED_FOR_GAME.load(Ordering::Relaxed)
+            || LEFT_DOWN.with(Cell::get)
+            || IN_SYNTHETIC_SET.with(Cell::get)
+        {
             return CallNextHookEx(null_mut(), n_code, wparam, lparam);
         }
         let info = &*(lparam as *const MSLLHOOKSTRUCT);
         if (info.flags & (LLMHF_INJECTED | LLMHF_LOWER_IL_INJECTED)) != 0 {
             return CallNextHookEx(null_mut(), n_code, wparam, lparam);
+        }
+        if let Some((ix, iy, at)) = LAST_INJECTED.with(Cell::get) {
+            if info.pt.x == ix && info.pt.y == iy && at.elapsed().as_millis() <= 25 {
+                LAST_INJECTED.with(|f| f.set(None));
+                return CallNextHookEx(null_mut(), n_code, wparam, lparam);
+            }
         }
 
         let bounds = virtual_bounds();
@@ -482,17 +530,11 @@ mod win {
         });
         match outcome {
             Some((nx, ny, needs_settle)) => {
+                LAST_INJECTED.with(|f| f.set(Some((nx, ny, now))));
                 IN_SYNTHETIC_SET.with(|f| f.set(true));
                 SetCursorPos(nx, ny);
                 IN_SYNTHETIC_SET.with(|f| f.set(false));
-                let hwnd = BRIDGE_HWND.with(Cell::get);
-                if !hwnd.is_null() {
-                    if needs_settle {
-                        SetTimer(hwnd, TIMER_SETTLE, 4, None);
-                    } else {
-                        KillTimer(hwnd, TIMER_SETTLE);
-                    }
-                }
+                set_settle_timer(BRIDGE_HWND.with(Cell::get), needs_settle);
                 1
             }
             None => CallNextHookEx(null_mut(), n_code, wparam, lparam),

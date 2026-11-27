@@ -19,6 +19,7 @@ use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WebviewWindow, Webview
 const TRAY_ID: &str = "main-tray";
 
 struct QuitRequested(AtomicBool);
+struct LastTraySummary(std::sync::Mutex<Option<bus::TraySummary>>);
 
 fn sync_titlebar_theme(win: &WebviewWindow, bus: &AppBus) {
     #[cfg(windows)]
@@ -71,6 +72,14 @@ fn build_tray_menu(app: &AppHandle, bus: &AppBus) -> tauri::Result<Menu<tauri::W
 
 fn refresh_tray(app: &AppHandle, bus: &AppBus) {
     let summary = bus.tray_summary();
+    let cache = app.state::<LastTraySummary>();
+    {
+        let mut last = cache.0.lock().unwrap_or_else(|p| p.into_inner());
+        if last.as_ref() == Some(&summary) {
+            return;
+        }
+        *last = Some(summary.clone());
+    }
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         let _ = tray.set_tooltip(Some(&summary.tooltip));
         if let Ok(menu) = build_tray_menu(app, bus) {
@@ -126,12 +135,15 @@ fn window_control(win: WebviewWindow, action: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
-fn execute_command(
+async fn execute_command(
     app: AppHandle,
     bus: State<'_, Arc<AppBus>>,
     cmd: BusCommand,
 ) -> Result<BusResponse, CommandError> {
-    let resp = bus.execute(cmd)?;
+    let bus_arc = bus.inner().clone();
+    let resp = tauri::async_runtime::spawn_blocking(move || bus_arc.execute(cmd))
+        .await
+        .map_err(|e| CommandError::new("TASK_JOIN_ERROR", "تعذر تنفيذ الأمر.", &e.to_string(), "Retry"))??;
     if let Some(win) = app.get_webview_window("main") {
         sync_titlebar_theme(&win, &bus);
     }
@@ -151,6 +163,7 @@ fn main() {
     tauri::Builder::default()
         .manage(bus)
         .manage(QuitRequested(AtomicBool::new(false)))
+        .manage(LastTraySummary(std::sync::Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![execute_command, window_control])
         .setup(move |app| {
             let app_bus = app.state::<Arc<AppBus>>().inner().clone();
@@ -166,16 +179,32 @@ fn main() {
                     if id == "open" {
                         open_main_window(app, &bus);
                     } else if id == "reapply" {
-                        bus.reapply_active();
+                        let app_h = app.clone();
+                        tauri::async_runtime::spawn_blocking(move || {
+                            bus.reapply_active();
+                            let h = app_h.clone();
+                            let _ = app_h.run_on_main_thread(move || {
+                                let b = h.state::<Arc<AppBus>>().inner().clone();
+                                refresh_tray(&h, &b);
+                            });
+                        });
                     } else if id == "quit" {
                         app.state::<QuitRequested>().0.store(true, Ordering::Relaxed);
                         smoother::shutdown();
                         app.exit(0);
                     } else if let Some(name) = id.strip_prefix("profile:") {
-                        if bus.select_profile_from_tray(name) {
-                            refresh_tray(app, &bus);
-                            let _ = app.emit("grip:workspace-updated", ());
-                        }
+                        let app_h = app.clone();
+                        let pname = name.to_string();
+                        tauri::async_runtime::spawn_blocking(move || {
+                            if bus.select_profile_from_tray(&pname) {
+                                let _ = app_h.emit("grip:workspace-updated", ());
+                                let h = app_h.clone();
+                                let _ = app_h.run_on_main_thread(move || {
+                                    let b = h.state::<Arc<AppBus>>().inner().clone();
+                                    refresh_tray(&h, &b);
+                                });
+                            }
+                        });
                     }
                 })
                 .on_tray_icon_event(|tray, event| {
@@ -196,6 +225,8 @@ fn main() {
             }
             tray.build(app)?;
 
+            let hw_busy = Arc::new(AtomicBool::new(false));
+            let bat_busy = Arc::new(AtomicBool::new(false));
             let fg_app = app.handle().clone();
             let fg_bus = app_bus.clone();
             let show_app = app.handle().clone();
@@ -206,10 +237,18 @@ fn main() {
 
             win_host::start_host_monitor(win_host::HostCallbacks {
                 on_app: Arc::new(move |exe| {
-                    if fg_bus.handle_foreground_app(&exe) {
-                        refresh_tray(&fg_app, &fg_bus);
-                        let _ = fg_app.emit("grip:workspace-updated", ());
-                    }
+                    let app_h = fg_app.clone();
+                    let bus_arc = fg_bus.clone();
+                    tauri::async_runtime::spawn_blocking(move || {
+                        if bus_arc.handle_foreground_app(&exe) {
+                            let _ = app_h.emit("grip:workspace-updated", ());
+                            let h = app_h.clone();
+                            let _ = app_h.run_on_main_thread(move || {
+                                let b = h.state::<Arc<AppBus>>().inner().clone();
+                                refresh_tray(&h, &b);
+                            });
+                        }
+                    });
                 }),
                 on_show_window: Arc::new(move || {
                     let h = show_app.clone();
@@ -219,14 +258,41 @@ fn main() {
                     });
                 }),
                 on_hardware_refresh: Arc::new(move || {
-                    if hw_bus.rescan_and_reapply() {
-                        refresh_tray(&hw_app, &hw_bus);
-                        let _ = hw_app.emit("grip:workspace-updated", ());
+                    if hw_busy.swap(true, Ordering::AcqRel) {
+                        return;
                     }
+                    let flag = hw_busy.clone();
+                    let app_h = hw_app.clone();
+                    let bus_arc = hw_bus.clone();
+                    tauri::async_runtime::spawn_blocking(move || {
+                        let refreshed = bus_arc.rescan_and_reapply();
+                        flag.store(false, Ordering::Release);
+                        if refreshed {
+                            let _ = app_h.emit("grip:workspace-updated", ());
+                            let h = app_h.clone();
+                            let _ = app_h.run_on_main_thread(move || {
+                                let b = h.state::<Arc<AppBus>>().inner().clone();
+                                refresh_tray(&h, &b);
+                            });
+                        }
+                    });
                 }),
                 on_battery_tick: Arc::new(move || {
-                    let _ = bat_bus.check_battery_alerts();
-                    refresh_tray(&bat_app, &bat_bus);
+                    if bat_busy.swap(true, Ordering::AcqRel) {
+                        return;
+                    }
+                    let flag = bat_busy.clone();
+                    let app_h = bat_app.clone();
+                    let bus_arc = bat_bus.clone();
+                    tauri::async_runtime::spawn_blocking(move || {
+                        let _ = bus_arc.check_battery_alerts();
+                        flag.store(false, Ordering::Release);
+                        let h = app_h.clone();
+                        let _ = app_h.run_on_main_thread(move || {
+                            let b = h.state::<Arc<AppBus>>().inner().clone();
+                            refresh_tray(&h, &b);
+                        });
+                    });
                 }),
             });
 

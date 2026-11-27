@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export function Slider({
   value,
@@ -24,6 +24,20 @@ export function Slider({
   const trackRef = useRef<HTMLDivElement>(null);
   const clamped = Math.min(max, Math.max(min, value));
   const span = Math.max(1, max - min);
+  const lastEmittedRef = useRef(clamped);
+
+  useEffect(() => {
+    lastEmittedRef.current = clamped;
+  }, [clamped]);
+
+  const emitIfChanged = useCallback(
+    (next: number) => {
+      if (next === lastEmittedRef.current) return;
+      lastEmittedRef.current = next;
+      onChange(next);
+    },
+    [onChange],
+  );
 
   const effectiveStops =
     stops && stops.length >= 2
@@ -62,7 +76,7 @@ export function Slider({
       if (dir === "rtl") ratio = 1 - ratio;
       ratio = Math.min(1, Math.max(0, ratio));
       if (!effectiveStops) {
-        onChange(snapValue(min + ratio * span));
+        emitIfChanged(snapValue(min + ratio * span));
         return;
       }
       const segs = effectiveStops.length - 1;
@@ -71,9 +85,9 @@ export function Slider({
       const local = scaled - idx;
       const a = effectiveStops[idx]!;
       const b = effectiveStops[idx + 1]!;
-      onChange(snapValue(a + local * (b - a)));
+      emitIfChanged(snapValue(a + local * (b - a)));
     },
-    [disabled, dir, effectiveStops, min, onChange, snapValue, span],
+    [disabled, dir, effectiveStops, emitIfChanged, min, snapValue, span],
   );
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -89,7 +103,7 @@ export function Slider({
     else if (e.key === "End") next = max;
     if (next !== null) {
       e.preventDefault();
-      onChange(next);
+      emitIfChanged(next);
     }
   };
 

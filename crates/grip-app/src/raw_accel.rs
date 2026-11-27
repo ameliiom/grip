@@ -124,6 +124,10 @@ mod win {
     use std::ptr::{null, null_mut};
     use windows_sys::Win32::Foundation::ERROR_SUCCESS;
     use windows_sys::Win32::System::Registry::{RegCloseKey, RegOpenKeyExW, HKEY, HKEY_LOCAL_MACHINE, KEY_READ};
+    use windows_sys::Win32::System::Services::{
+        CloseServiceHandle, OpenSCManagerW, OpenServiceW, QueryServiceStatus, SC_MANAGER_CONNECT,
+        SERVICE_QUERY_STATUS, SERVICE_RUNNING, SERVICE_STATUS,
+    };
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
     use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
@@ -146,11 +150,23 @@ mod win {
     }
 
     fn is_driver_running() -> bool {
-        Command::new("sc.exe")
-            .args(["query", "rawaccel"])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
-            .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).contains("RUNNING"))
+        let name = wide("rawaccel");
+        unsafe {
+            let scm = OpenSCManagerW(null(), null(), SC_MANAGER_CONNECT);
+            if scm.is_null() {
+                return false;
+            }
+            let svc = OpenServiceW(scm, name.as_ptr(), SERVICE_QUERY_STATUS);
+            if svc.is_null() {
+                CloseServiceHandle(scm);
+                return false;
+            }
+            let mut status: SERVICE_STATUS = std::mem::zeroed();
+            let running = QueryServiceStatus(svc, &mut status) != 0 && status.dwCurrentState == SERVICE_RUNNING;
+            CloseServiceHandle(svc);
+            CloseServiceHandle(scm);
+            running
+        }
     }
 
     fn find_writer_exe() -> Option<PathBuf> {

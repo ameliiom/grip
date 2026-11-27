@@ -36,6 +36,7 @@ export function MotionView({
   vocab,
   onUpdateSettings,
   onApplyRawAccel,
+  applyingRawAccel = false,
   onOpenRawAccelDownload,
   onRefreshMotionStatus,
   onSelectPolling,
@@ -48,6 +49,7 @@ export function MotionView({
   vocab: Vocab;
   onUpdateSettings: (next: AppSettings) => void;
   onApplyRawAccel: (raw: RawAccelSettings) => void;
+  applyingRawAccel?: boolean;
   onOpenRawAccelDownload: () => void;
   onRefreshMotionStatus: () => void;
   onSelectPolling: (hz: number) => void;
@@ -377,7 +379,7 @@ export function MotionView({
                 </Stack>
               </SurfaceInset>
 
-              <Button variant="primary" size="md" fullWidth={true} onClick={() => onApplyRawAccel(ra)}>
+              <Button variant="primary" size="md" fullWidth={true} disabled={applyingRawAccel} onClick={() => onApplyRawAccel(ra)}>
                 <span>{vocab.motionRawAccelApply}</span>
               </Button>
             </Stack>

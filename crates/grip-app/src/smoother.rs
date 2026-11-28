@@ -11,6 +11,11 @@ pub struct SmootherStatus {
     pub bypassed_for_game: bool,
 }
 
+/// Hook is only installed when smoothing is enabled AND no game/fullscreen app is focused.
+pub fn should_hook(enabled: bool, paused_for_game: bool) -> bool {
+    enabled && !paused_for_game
+}
+
 fn lp_alpha(cutoff_hz: f64, dt_secs: f64) -> f64 {
     if cutoff_hz <= 0.0 || dt_secs <= 0.0 || !cutoff_hz.is_finite() || !dt_secs.is_finite() {
         return 1.0;
@@ -411,12 +416,13 @@ mod win {
     }
 
     unsafe fn sync_hook_on_worker() {
-        let cfg = {
+        let (cfg, paused) = {
             let guard = shared().lock().unwrap_or_else(|p| p.into_inner());
-            PAUSED_FOR_GAME.store(compute_paused(&guard), Ordering::Release);
-            guard.cfg.clone()
+            let p = compute_paused(&guard);
+            PAUSED_FOR_GAME.store(p, Ordering::Release);
+            (guard.cfg.clone(), p)
         };
-        let want = cfg.enabled;
+        let want = super::should_hook(cfg.enabled, paused);
         LIVE_CFG.with(|c| *c.borrow_mut() = cfg);
         BOUNDS_AT.with(|at| at.set(None));
         LEFT_DOWN.with(|f| f.set(false));
@@ -564,16 +570,26 @@ mod win {
         if cfg!(test) {
             return;
         }
-        let mut guard = shared().lock().unwrap_or_else(|p| p.into_inner());
-        guard.foreground_exe = exe.to_string();
-        guard.foreground_fullscreen = fullscreen;
-        PAUSED_FOR_GAME.store(compute_paused(&guard), Ordering::Release);
+        let (enabled, next_paused) = {
+            let mut guard = shared().lock().unwrap_or_else(|p| p.into_inner());
+            guard.foreground_exe = exe.to_string();
+            guard.foreground_fullscreen = fullscreen;
+            (guard.cfg.enabled, compute_paused(&guard))
+        };
+        let prev = PAUSED_FOR_GAME.swap(next_paused, Ordering::AcqRel);
+        if prev != next_paused && (enabled || THREAD_ID.load(Ordering::Acquire) != 0) {
+            let tid = ensure_worker_started();
+            if tid != 0 {
+                unsafe { PostThreadMessageW(tid, WM_SYNC_SMOOTHER, 0, 0) };
+            }
+        }
     }
 
     pub fn status() -> SmootherStatus {
+        let enabled = shared().lock().map(|g| g.cfg.enabled).unwrap_or(false);
         SmootherStatus {
             hook_active: HOOK_ACTIVE.load(Ordering::Relaxed),
-            bypassed_for_game: HOOK_ACTIVE.load(Ordering::Relaxed) && PAUSED_FOR_GAME.load(Ordering::Relaxed),
+            bypassed_for_game: enabled && PAUSED_FOR_GAME.load(Ordering::Relaxed),
         }
     }
 
@@ -695,5 +711,13 @@ mod tests {
             }
         }
         assert!((cur.0 - 1087).abs() <= 2 && (cur.1 - 1050).abs() <= 2, "settled at {:?}", cur);
+    }
+
+    #[test]
+    fn hook_is_detached_whenever_game_bypass_is_active() {
+        assert!(!should_hook(true, true));
+        assert!(should_hook(true, false));
+        assert!(!should_hook(false, false));
+        assert!(!should_hook(false, true));
     }
 }

@@ -1063,7 +1063,7 @@ export const VOCAB: Record<Locale, Vocab> = {
       },
       motionRawSmooth: {
         title: "تنعيم إخراج الألعاب",
-        body: "قيمة 0 خام تماماً؛ 1.5 إلى 5.0 مللي ثانية تنعّم تقطّع الحساس بشكل ملحوظ على شاشات 240Hz بأقل أثر على زمن الاستجابة.",
+        body: "قيمة 0.0 خام تماماً وفورية لألعاب التصويب (أدق وأسرع أيم). رفعها يضيف تأخيراً لتنعيم الإخراج وقد يثقل الحركة السريعة.",
       },
       motionRawSens: {
         title: "مضاعف الحساسية",
@@ -1465,7 +1465,7 @@ export const VOCAB: Record<Locale, Vocab> = {
       },
       motionRawSmooth: {
         title: "Output smoothing",
-        body: "0.0 ms is raw output; 1.5 to 5.0 ms smooths sensor micro-stepping cleanly on high-refresh monitors.",
+        body: "0.0 ms gives crisp, instant raw 1:1 aim for FPS games. Higher values add smoothing delay and can make quick flicks feel floaty.",
       },
       motionRawSens: {
         title: "Sensitivity scale",
